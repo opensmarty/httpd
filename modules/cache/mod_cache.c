@@ -909,8 +909,8 @@ static apr_status_t cache_save_filter(ap_filter_t *f, apr_bucket_brigade *in)
 
             /* add a revalidation warning */
             warn_head = apr_table_get(r->err_headers_out, "Warning");
-            if ((warn_head == NULL) || ((warn_head != NULL)
-                    && (ap_strstr_c(warn_head, "111") == NULL))) {
+            if ((warn_head == NULL) ||
+                    (ap_strstr_c(warn_head, "111") == NULL)) {
                 apr_table_mergen(r->err_headers_out, "Warning",
                         "111 Revalidation failed");
             }
@@ -1040,8 +1040,11 @@ static apr_status_t cache_save_filter(ap_filter_t *f, apr_bucket_brigade *in)
     if (reason) {
         /* noop */
     }
-    else if (exps != NULL && exp == APR_DATE_BAD) {
-        /* if a broken Expires header is present, don't cache it */
+    else if (!control.s_maxage && !control.max_age && !dconf->store_expired
+             && exps != NULL && exp == APR_DATE_BAD) {
+        /* if a broken Expires header is present, don't cache it
+         * Unless CC: s-maxage or max-age is present
+         */
         reason = apr_pstrcat(p, "Broken expires header: ", exps, NULL);
     }
     else if (!control.s_maxage && !control.max_age
@@ -1898,8 +1901,8 @@ static void cache_insert_error_filter(request_rec *r)
 
             /* add a revalidation warning */
             warn_head = apr_table_get(r->err_headers_out, "Warning");
-            if ((warn_head == NULL) || ((warn_head != NULL)
-                    && (ap_strstr_c(warn_head, "111") == NULL))) {
+            if ((warn_head == NULL)
+                    || ap_strstr_c(warn_head, "111") == NULL) {
                 apr_table_mergen(r->err_headers_out, "Warning",
                         "111 Revalidation failed");
             }

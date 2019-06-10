@@ -42,7 +42,7 @@
 </ul><h3>See also</h3><ul class="seealso"><li><a href="#comments_section">Comments</a></li></ul></div>
 <div class="top"><a href="#page-header"><img alt="top" src="./images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="introduction" id="introduction">Introduction</a><a title="Permanent link" href="#introduction" class="permalink">&para;</a></h2>
+<h2><a name="introduction" id="introduction">Introduction</a> <a title="Permanent link" href="#introduction" class="permalink">&para;</a></h2>
     
 
     <p>The Apache HTTP server offers a range of caching features that
@@ -96,7 +96,7 @@
 
   </div><div class="top"><a href="#page-header"><img alt="top" src="./images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="http-caching" id="http-caching">Three-state RFC2616 HTTP caching</a><a title="Permanent link" href="#http-caching" class="permalink">&para;</a></h2>
+<h2><a name="http-caching" id="http-caching">Three-state RFC2616 HTTP caching</a> <a title="Permanent link" href="#http-caching" class="permalink">&para;</a></h2>
 
     
 
@@ -327,8 +327,9 @@
       <ol>
         <li>Caching must be enabled for this URL. See the <code class="directive"><a href="./mod/mod_cache.html#cacheenable">CacheEnable</a></code> and <code class="directive"><a href="./mod/mod_cache.html#cachedisable">CacheDisable</a></code> directives.</li>
 
-        <li>The response must have a HTTP status code of 200, 203, 300, 301 or
-        410.</li>
+        <li>If the response has an HTTP status code other than 200, 203, 300, 
+        301 or 410 it must also specify an "Expires" or "Cache-Control" header.
+        </li>
 
         <li>The request must be a HTTP GET request.</li>
 
@@ -421,7 +422,7 @@ Vary: negotiate,accept-language,accept-charset
 
   </div><div class="top"><a href="#page-header"><img alt="top" src="./images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="examples" id="examples">Cache Setup Examples</a><a title="Permanent link" href="#examples" class="permalink">&para;</a></h2>
+<h2><a name="examples" id="examples">Cache Setup Examples</a> <a title="Permanent link" href="#examples" class="permalink">&para;</a></h2>
 
     
 
@@ -579,7 +580,7 @@ CacheSocache dbm:/path/to/datafile</pre>
 
   </div><div class="top"><a href="#page-header"><img alt="top" src="./images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="socache-caching" id="socache-caching">General Two-state Key/Value Shared Object Caching</a><a title="Permanent link" href="#socache-caching" class="permalink">&para;</a></h2>
+<h2><a name="socache-caching" id="socache-caching">General Two-state Key/Value Shared Object Caching</a> <a title="Permanent link" href="#socache-caching" class="permalink">&para;</a></h2>
 
     
 
@@ -625,7 +626,7 @@ CacheSocache dbm:/path/to/datafile</pre>
 
   </div><div class="top"><a href="#page-header"><img alt="top" src="./images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="file-caching" id="file-caching">Specialized File Caching</a><a title="Permanent link" href="#file-caching" class="permalink">&para;</a></h2>
+<h2><a name="file-caching" id="file-caching">Specialized File Caching</a> <a title="Permanent link" href="#file-caching" class="permalink">&para;</a></h2>
 
     
 
@@ -771,7 +772,7 @@ sys     0m0.000s</pre></div>
 
   </div><div class="top"><a href="#page-header"><img alt="top" src="./images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="security" id="security">Security Considerations</a><a title="Permanent link" href="#security" class="permalink">&para;</a></h2>
+<h2><a name="security" id="security">Security Considerations</a> <a title="Permanent link" href="#security" class="permalink">&para;</a></h2>
     
 
     <h3>Authorization and Access Control</h3>
@@ -898,7 +899,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/trunk/caching.html';
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2019 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="./mod/">Modules</a> | <a href="./mod/quickreference.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="./glossary.html">Glossary</a> | <a href="./sitemap.html">Sitemap</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

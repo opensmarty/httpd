@@ -69,6 +69,10 @@ static int proxy_match_domainname(struct dirconn_entry *This, request_rec *r);
 static int proxy_match_hostname(struct dirconn_entry *This, request_rec *r);
 static int proxy_match_word(struct dirconn_entry *This, request_rec *r);
 static int ap_proxy_retry_worker(const char *proxy_function, proxy_worker *worker, server_rec *s);
+static proxy_worker *proxy_balancer_get_best_worker(proxy_balancer *balancer,
+                                                    request_rec *r,
+                                                    proxy_is_best_callback_fn_t *is_best,
+                                                    void *baton);
 
 APR_IMPLEMENT_OPTIONAL_HOOK_RUN_ALL(proxy, PROXY, int, create_req,
                                    (request_rec *r, request_rec *pr), (r, pr),
@@ -826,7 +830,7 @@ PROXY_DECLARE(const char *) ap_proxy_location_reverse_map(request_rec *r,
 {
     proxy_req_conf *rconf;
     struct proxy_alias *ent;
-    int i, l1, l2;
+    int i, l1, l1_orig, l2;
     char *u;
 
     /*
@@ -838,7 +842,7 @@ PROXY_DECLARE(const char *) ap_proxy_location_reverse_map(request_rec *r,
         return url;
     }
 
-    l1 = strlen(url);
+    l1_orig = strlen(url);
     if (conf->interpolate_env == 1) {
         rconf = ap_get_module_config(r->request_config, &proxy_module);
         ent = (struct proxy_alias *)rconf->raliases->elts;
@@ -851,6 +855,10 @@ PROXY_DECLARE(const char *) ap_proxy_location_reverse_map(request_rec *r,
             ap_get_module_config(r->server->module_config, &proxy_module);
         proxy_balancer *balancer;
         const char *real = ent[i].real;
+
+        /* Restore the url length, if it had been changed by the code below */
+        l1 = l1_orig;
+
         /*
          * First check if mapping against a balancer and see
          * if we have such a entity. If so, then we need to
@@ -1157,11 +1165,13 @@ PROXY_DECLARE(char *) ap_proxy_define_balancer(apr_pool_t *p,
      * exist, that's OK at this time. We check when we share and sync
      */
     lbmethod = ap_lookup_provider(PROXY_LBMETHOD, "byrequests", "0");
-
+    (*balancer)->lbmethod = lbmethod;
+    
     (*balancer)->workers = apr_array_make(p, 5, sizeof(proxy_worker *));
+#if APR_HAS_THREADS
     (*balancer)->gmutex = NULL;
     (*balancer)->tmutex = NULL;
-    (*balancer)->lbmethod = lbmethod;
+#endif
 
     if (do_malloc)
         bshared = ap_malloc(sizeof(proxy_balancer_shared));
@@ -1175,6 +1185,8 @@ PROXY_DECLARE(char *) ap_proxy_define_balancer(apr_pool_t *p,
     if (PROXY_STRNCPY(bshared->name, uri) != APR_SUCCESS) {
         return apr_psprintf(p, "balancer name (%s) too long", uri);
     }
+    (*balancer)->lbmethod_set = 1;
+
     /*
      * We do the below for verification. The real sname will be
      * done post_config
@@ -1229,6 +1241,7 @@ PROXY_DECLARE(apr_status_t) ap_proxy_share_balancer(proxy_balancer *balancer,
     lbmethod = ap_lookup_provider(PROXY_LBMETHOD, balancer->s->lbpname, "0");
     if (lbmethod) {
         balancer->lbmethod = lbmethod;
+        balancer->lbmethod_set = 1;
     } else {
         ap_log_error(APLOG_MARK, APLOG_CRIT, 0, ap_server_conf, APLOGNO(02432)
                      "Cannot find LB Method: %s", balancer->s->lbpname);
@@ -1249,7 +1262,9 @@ PROXY_DECLARE(apr_status_t) ap_proxy_share_balancer(proxy_balancer *balancer,
 
 PROXY_DECLARE(apr_status_t) ap_proxy_initialize_balancer(proxy_balancer *balancer, server_rec *s, apr_pool_t *p)
 {
+#if APR_HAS_THREADS
     apr_status_t rv = APR_SUCCESS;
+#endif
     ap_slotmem_provider_t *storage = balancer->storage;
     apr_size_t size;
     unsigned int num;
@@ -1263,6 +1278,7 @@ PROXY_DECLARE(apr_status_t) ap_proxy_initialize_balancer(proxy_balancer *balance
      * for each balancer we need to init the global
      * mutex and then attach to the shared worker shm
      */
+#if APR_HAS_THREADS
     if (!balancer->gmutex) {
         ap_log_error(APLOG_MARK, APLOG_CRIT, 0, s, APLOGNO(00919)
                      "no mutex %s", balancer->s->name);
@@ -1279,6 +1295,7 @@ PROXY_DECLARE(apr_status_t) ap_proxy_initialize_balancer(proxy_balancer *balance
                      balancer->s->name);
         return rv;
     }
+#endif
 
     /* now attach */
     storage->attach(&(balancer->wslot), balancer->s->sname, &size, &num, p);
@@ -1289,6 +1306,7 @@ PROXY_DECLARE(apr_status_t) ap_proxy_initialize_balancer(proxy_balancer *balance
     if (balancer->lbmethod && balancer->lbmethod->reset)
         balancer->lbmethod->reset(balancer, s);
 
+#if APR_HAS_THREADS
     if (balancer->tmutex == NULL) {
         rv = apr_thread_mutex_create(&(balancer->tmutex), APR_THREAD_MUTEX_DEFAULT, p);
         if (rv != APR_SUCCESS) {
@@ -1297,13 +1315,14 @@ PROXY_DECLARE(apr_status_t) ap_proxy_initialize_balancer(proxy_balancer *balance
             return rv;
         }
     }
+#endif
     return APR_SUCCESS;
 }
 
-PROXY_DECLARE(proxy_worker *) ap_proxy_balancer_get_best_worker(proxy_balancer *balancer,
-                                                                request_rec *r,
-                                                                proxy_is_best_callback_fn_t *is_best,
-                                                                void *baton)
+static proxy_worker *proxy_balancer_get_best_worker(proxy_balancer *balancer,
+                                                    request_rec *r,
+                                                    proxy_is_best_callback_fn_t *is_best,
+                                                    void *baton)
 {
     int i = 0;
     int cur_lbset = 0;
@@ -1415,6 +1434,14 @@ PROXY_DECLARE(proxy_worker *) ap_proxy_balancer_get_best_worker(proxy_balancer *
     return best_worker;
 }
 
+PROXY_DECLARE(proxy_worker *) ap_proxy_balancer_get_best_worker(proxy_balancer *balancer,
+                                                                request_rec *r,
+                                                                proxy_is_best_callback_fn_t *is_best,
+                                                                void *baton)
+{
+    return proxy_balancer_get_best_worker(balancer, r, is_best, baton);
+}
+
 /*
  * CONNECTION related...
  */
@@ -1497,6 +1524,13 @@ static apr_status_t connection_cleanup(void *theconn)
                     && conn->connection->keepalive == AP_CONN_CLOSE)) {
         socket_cleanup(conn);
         conn->close = 0;
+    }
+    else if (conn->is_ssl) {
+        /* Unbind/reset the SSL connection dir config (sslconn->dc) from
+         * r->per_dir_config, r will likely get destroyed before this proxy
+         * conn is reused.
+         */
+        ap_proxy_ssl_engine(conn->connection, worker->section_config, 1);
     }
 
     if (worker->s->hmax && worker->cp->res) {
@@ -1930,7 +1964,8 @@ PROXY_DECLARE(apr_status_t) ap_proxy_share_worker(proxy_worker *worker, proxy_wo
     }
     worker->s = shm;
     worker->s->index = i;
-    {
+
+    if (APLOGdebug(ap_server_conf)) {
         apr_pool_t *pool;
         apr_pool_create(&pool, ap_server_conf->process->pool);
         ap_log_error(APLOG_MARK, APLOG_DEBUG, 0, ap_server_conf, APLOGNO(02338)
@@ -2018,6 +2053,7 @@ PROXY_DECLARE(apr_status_t) ap_proxy_initialize_worker(proxy_worker *worker, ser
                      ap_proxy_worker_name(p, worker));
         apr_global_mutex_lock(proxy_mutex);
         /* Now init local worker data */
+#if APR_HAS_THREADS
         if (worker->tmutex == NULL) {
             rv = apr_thread_mutex_create(&(worker->tmutex), APR_THREAD_MUTEX_DEFAULT, p);
             if (rv != APR_SUCCESS) {
@@ -2027,6 +2063,7 @@ PROXY_DECLARE(apr_status_t) ap_proxy_initialize_worker(proxy_worker *worker, ser
                 return rv;
             }
         }
+#endif
         if (worker->cp == NULL)
             init_conn_pool(p, worker);
         if (worker->cp == NULL) {
@@ -2384,7 +2421,9 @@ ap_proxy_determine_connection(apr_pool_t *p, request_rec *r,
 {
     int server_port;
     apr_status_t err = APR_SUCCESS;
+#if APR_HAS_THREADS
     apr_status_t uerr = APR_SUCCESS;
+#endif
     const char *uds_path;
 
     /*
@@ -2489,8 +2528,8 @@ ap_proxy_determine_connection(apr_pool_t *p, request_rec *r,
                     proxy_auth = apr_table_get(r->headers_in, "Proxy-Authorization");
                     if (proxy_auth != NULL &&
                         proxy_auth[0] != '\0' &&
-                        r->user == NULL && /* we haven't yet authenticated */
-                        apr_table_get(r->subprocess_env, "Proxy-Chain-Auth")) {
+                        (r->user == NULL || /* we haven't yet authenticated */
+                        apr_table_get(r->subprocess_env, "Proxy-Chain-Auth"))) {
                         forward->proxy_auth = apr_pstrdup(conn->pool, proxy_auth);
                     }
                 }
@@ -2518,10 +2557,12 @@ ap_proxy_determine_connection(apr_pool_t *p, request_rec *r,
              * we can reuse the address.
              */
             if (!worker->cp->addr) {
+#if APR_HAS_THREADS
                 if ((err = PROXY_THREAD_LOCK(worker)) != APR_SUCCESS) {
                     ap_log_rerror(APLOG_MARK, APLOG_ERR, err, r, APLOGNO(00945) "lock");
                     return HTTP_INTERNAL_SERVER_ERROR;
                 }
+#endif
 
                 /*
                  * Worker can have the single constant backend address.
@@ -2534,9 +2575,11 @@ ap_proxy_determine_connection(apr_pool_t *p, request_rec *r,
                                             conn->port, 0,
                                             worker->cp->pool);
                 conn->addr = worker->cp->addr;
+#if APR_HAS_THREADS
                 if ((uerr = PROXY_THREAD_UNLOCK(worker)) != APR_SUCCESS) {
                     ap_log_rerror(APLOG_MARK, APLOG_ERR, uerr, r, APLOGNO(00946) "unlock");
                 }
+#endif
             }
             else {
                 conn->addr = worker->cp->addr;
@@ -3205,6 +3248,12 @@ static int proxy_connection_create(const char *proxy_function,
     apr_bucket_alloc_t *bucket_alloc;
 
     if (conn->connection) {
+        if (conn->is_ssl) {
+            /* on reuse, reinit the SSL connection dir config with the current
+             * r->per_dir_config, the previous one was reset on release.
+             */
+            ap_proxy_ssl_engine(conn->connection, per_dir_config, 1);
+        }
         return OK;
     }
 
@@ -3244,6 +3293,9 @@ static int proxy_connection_create(const char *proxy_function,
             /* Set a note on the connection about what CN is requested,
              * such that mod_ssl can check if it is requested to do so.
              */
+            ap_log_cerror(APLOG_MARK, APLOG_TRACE1, 0, conn->connection, 
+                          "%s: set SNI to %s for (%s)", proxy_function,
+                          conn->ssl_hostname, conn->hostname);
             apr_table_setn(conn->connection->notes, "proxy-request-hostname",
                            conn->ssl_hostname);
         }
@@ -3466,7 +3518,9 @@ PROXY_DECLARE(apr_status_t) ap_proxy_sync_balancer(proxy_balancer *b, server_rec
             (*runtime)->cp = NULL;
             (*runtime)->balancer = b;
             (*runtime)->s = shm;
+#if APR_HAS_THREADS
             (*runtime)->tmutex = NULL;
+#endif
             rv = ap_proxy_initialize_worker(*runtime, s, conf->pool);
             if (rv != APR_SUCCESS) {
                 ap_log_error(APLOG_MARK, APLOG_EMERG, rv, s, APLOGNO(00966) "Cannot init worker");
@@ -3725,14 +3779,6 @@ PROXY_DECLARE(int) ap_proxy_create_hdrbrgd(apr_pool_t *p,
     if (do_100_continue) {
         const char *val;
 
-        if (!r->expecting_100) {
-            /* Don't forward any "100 Continue" response if the client is
-             * not expecting it.
-             */
-            apr_table_setn(r->subprocess_env, "proxy-interim-response",
-                                              "Suppress");
-        }
-
         /* Add the Expect header if not already there. */
         if (((val = apr_table_get(r->headers_in, "Expect")) == NULL)
                 || (ap_cstr_casecmp(val, "100-Continue") != 0 /* fast path */
@@ -3918,6 +3964,8 @@ static proxy_schemes_t pschemes[] =
     {"scgi",     SCGI_DEF_PORT},
     {"h2c",      DEFAULT_HTTP_PORT},
     {"h2",       DEFAULT_HTTPS_PORT},
+    {"ws",       DEFAULT_HTTP_PORT},
+    {"wss",      DEFAULT_HTTPS_PORT},
     { NULL, 0xFFFF }     /* unknown port */
 };
 
@@ -4076,4 +4124,5 @@ void proxy_util_register_hooks(apr_pool_t *p)
 {
     APR_REGISTER_OPTIONAL_FN(ap_proxy_retry_worker);
     APR_REGISTER_OPTIONAL_FN(ap_proxy_clear_connection);
+    APR_REGISTER_OPTIONAL_FN(proxy_balancer_get_best_worker);
 }

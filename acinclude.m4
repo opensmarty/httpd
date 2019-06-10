@@ -45,7 +45,7 @@ AC_DEFUN([APACHE_GEN_CONFIG_VARS],[
   APACHE_SUBST(installbuilddir)
   APACHE_SUBST(runtimedir)
   APACHE_SUBST(proxycachedir)
-  APACHE_SUBST(davlockdb)
+  APACHE_SUBST(statedir)
   APACHE_SUBST(other_targets)
   APACHE_SUBST(progname)
   APACHE_SUBST(prefix)
@@ -122,7 +122,7 @@ AC_DEFUN([APACHE_GEN_CONFIG_VARS],[
 dnl APACHE_GEN_MAKEFILES
 dnl Creates Makefiles
 AC_DEFUN([APACHE_GEN_MAKEFILES],[
-  $SHELL $srcdir/build/fastgen.sh $srcdir $ac_cv_mkdir_p $BSD_MAKEFILE $APACHE_FAST_OUTPUT_FILES
+  $SHELL $srcdir/build/fastgen.sh $srcdir $ac_cv_mkdir_p $BSD_MAKEFILE $APACHE_FAST_OUTPUT_FILES >&AS_MESSAGE_FD
 ])
 
 dnl
@@ -542,12 +542,18 @@ AC_DEFUN([APACHE_CHECK_OPENSSL],[
     dnl Before doing anything else, load in pkg-config variables
     if test -n "$PKGCONFIG"; then
       saved_PKG_CONFIG_PATH="$PKG_CONFIG_PATH"
-      if test "x$ap_openssl_base" != "x" -a \
-              -f "${ap_openssl_base}/lib/pkgconfig/openssl.pc"; then
-        dnl Ensure that the given path is used by pkg-config too, otherwise
-        dnl the system openssl.pc might be picked up instead.
-        PKG_CONFIG_PATH="${ap_openssl_base}/lib/pkgconfig${PKG_CONFIG_PATH+:}${PKG_CONFIG_PATH}"
-        export PKG_CONFIG_PATH
+      if test "x$ap_openssl_base" != "x"; then
+        if test -f "${ap_openssl_base}/lib/pkgconfig/openssl.pc"; then
+          dnl Ensure that the given path is used by pkg-config too, otherwise
+          dnl the system openssl.pc might be picked up instead.
+          PKG_CONFIG_PATH="${ap_openssl_base}/lib/pkgconfig${PKG_CONFIG_PATH+:}${PKG_CONFIG_PATH}"
+          export PKG_CONFIG_PATH
+        elif test -f "${ap_openssl_base}/lib64/pkgconfig/openssl.pc"; then
+          dnl Ensure that the given path is used by pkg-config too, otherwise
+          dnl the system openssl.pc might be picked up instead.
+          PKG_CONFIG_PATH="${ap_openssl_base}/lib64/pkgconfig${PKG_CONFIG_PATH+:}${PKG_CONFIG_PATH}"
+          export PKG_CONFIG_PATH
+        fi
       fi
       AC_ARG_ENABLE(ssl-staticlib-deps,APACHE_HELP_STRING(--enable-ssl-staticlib-deps,[link mod_ssl with dependencies of OpenSSL's static libraries (as indicated by "pkg-config --static"). Must be specified in addition to --enable-ssl.]), [
         if test "$enableval" = "yes"; then
@@ -870,7 +876,7 @@ AC_DEFUN([APACHE_EXPORT_ARGUMENTS],[
   APACHE_SUBST_EXPANDED_ARG(runtimedir)
   APACHE_SUBST_EXPANDED_ARG(logfiledir)
   APACHE_SUBST_EXPANDED_ARG(proxycachedir)
-  APACHE_SUBST_EXPANDED_ARG(davlockdb)
+  APACHE_SUBST_EXPANDED_ARG(statedir)
 ])
 
 dnl 

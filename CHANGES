@@ -1,20 +1,169 @@
                                                          -*- coding: utf-8 -*-
 Changes with Apache 2.5.1
 
+  *) mod_proxy/ssl: Proxy SSL client certificate configuration and other proxy
+     SSL configurations broken inside <Proxy> context.  PR 63430.
+     [Ruediger Pluem, Yann Ylavic]
+
+  *) mod_reqtimeout: Fix default rates missing (not applied) in 2.4.39.
+     PR 63325. [Yann Ylavic]
+
+  *) mod_ldap: Avoid potential crashes in util_ldap_cache_module_kill() or other
+     LDAP related functions during graceful restart of a busy server. PR63305.
+     [Martin Fúsek <mfusek newps.cz>]
+
+  *) mod_cache: Fix parsing of quoted Cache-Control token arguments.
+     PR 63288. [Yann Ylavic]
+
+  *) mod_md: Store permissions are enforced on file creation, enforcing restrictions in
+     spite of umask. Fixes <https://github.com/icing/mod_md/issues/117>. [Stefan Eissing]
+     
+  *) mod_ssl: Correctly restore SSL verify state after TLSv1.3 PHA failure.
+     [Michael Kaufmann <mail michael-kaufmann.ch>]
+
+  *) mod_md: Explicitly setting file permissions to break out of umasks. We want our
+     non-privilegded apache user to be able to read them. See github issue
+     <https://github.com/icing/mod_md/issues/117>. [Stefan Eissing] 
+  
+  *) Merge consecutive slashes in URL's. Opt-out with `MergeSlashes OFF`. 
+     [Eric Covener]
+
+  *) mod_proxy/ssl: Cleanup per-request SSL configuration anytime a backend
+     connection is recycled/reused to avoid a possible crash with some SSLProxy
+     configurations in <Location> or <Proxy> context. PR 63256. [Yann Ylavic]
+
+  *) mod_mime: Add `MimeOptions` directive to allow Content-Type or all metadata
+     detection to use only the last (right-most) file extension or to be
+     disabled per-dir. [Eric Covener]
+
+  *) MPMs unix: bind the bucket number of each child to its slot number, for a
+     more efficient per bucket maintenance. [Yann Ylavic]
+
+  *) http: Fix possible empty response with mod_ratelimit for HEAD requests.
+     PR 63192. [Yann Ylavic]
+
+  *) mod_cache_socache: Avoid reallocations and be safe with outgoing data
+     lifetime. [Yann Ylavic]
+
+  *) mod_reqtimeout: Allow to configure (TLS-)handshake timeouts.
+     PR 61310. [Yann Ylavic]
+
+  *) mod_auth_digest: Fix a race condition. Authentication with valid credentials could be
+     refused in case of concurrent accesses from different users.
+     PR 63124 [Simon Kappel <simon.kappel axis.com>]
+
+  *) mod_ssl: Don't unset FIPS mode on restart unless it's forced by
+     configuration (SSLFIPS on) and not active by default in OpenSSL.
+     PR 63136. [Yann Ylavic]
+
+  *) mod_ssl: give mod_md the chance to override certificate after ALPN protocol
+     negotiation. [Stefan Eissing]
+
+  *) mod_proxy_wstunnel: Fix websocket proxy over UDS.
+     PR 62932 <pavel dcmsys.com>
+  
+  *) mod_negociation: LanguagePriority should be case-insensitive in order to
+     match AddLanguage behavior. PR 39730 [Christophe Jaillet]
+  
+  *) mod_session: Always decode session attributes early. [Hank Ibell]
+
+  *) core: Incorrect values for environment variables are substituted when
+     multiple environment variables are specified in a directive. [Hank Ibell]
+
+  *) core: Split out the ability to parse wildcard files and directories
+     from the Include/IncludeOptional directives into a generic set of
+     functions ap_dir_nofnmatch() and ap_dir_fnmatch(). [Graham Leggett]
+
+  *) mod_dav: Fix an unlikely time-window where some incorrect data could be returned
+     from a PROPFIND request [Ruediger Pluem]
+
+  *) mod_ssl: Fix mod_authz provider for "require ssl" directive to check correctly
+     on HTTP/2 connections. Fixes PR 62654. [Stefan Eissing]
+
+  *) mod_ssl: clear *SSL errors before loading certificates and checking
+     afterwards. Otherwise errors are reported when other SSL using modules
+     are in play. Fixes PR 62880. [Michael Kaufmann]
+
+  *) mod_ssl: Correctly merge configurations that have client certificates set
+     by SSLProxyMachineCertificate{File|Path}. [Ruediger Pluem]
+
+  *) core: Ensure that aborted connections are logged as such. PR 62823
+     [Arnaud Grandville <contact@grandville.net>]
+
+  *) mpm_event: Stop issuing AH00484 "server reached MaxRequestWorkers..." when
+     there are still idle threads available. When there are less idle threads than
+     MinSpareThreads, issue new one-time message AH10159. Matches worker MPM.
+     [Eric Covener]
+
+  *) mod_proxy_scgi, mod_proxy_uwsgi: improve error handling when sending the
+     body of the response. [Jim Jagielski]
+
+  *) mod_session_cookie: avoid duplicate Set-Cookie header in the response.
+     [Emmanuel Dreyfus <manu@netbsd.org>, Luca Toscano]
+
+  *) mod_dav_fs: Set a default DAVLockDB within the state directory.
+     [Joe Orton]
+
+  *) core: Add DefaultStateDir and layout-specific state directory
+     created at "make install".  [Joe Orton]
+
+  *) mod_ssl: Fix a regression that the configuration settings for verify mode
+     and verify depth were taken from the frontend connection in case of
+     connections by the proxy to the backend. PR 62769. [Ruediger Pluem]
+
+  *) ab: Add client certificate support. [Graham Leggett]
+
+  *) mod_proxy_hcheck: Fix issues with TCP health checks. PR 61499
+     [Dominik Stillhard <dominik.stillhard united-security-providers.ch>]
+
+  *) MPMs: Initialize all runtime/asynchronous objects on a dedicated pool and
+     before signals handling to avoid lifetime issues on restart or shutdown.
+     PR 62658. [Yann Ylavic]
+
+  *) core: Add StrictHostCheck to allow ucnonfigured hostnames to be
+     rejected. [Eric Covener]
+
+  *) mod_status: Cumulate CPU time of exited child processes in the
+     "cu" and "cs" values. Add CPU time of the parent process to the
+     "c" and "s" values.
+     [Rainer Jung]
+
+  *) mod_status: Add cumulated response duration time in milliseconds.
+     [Rainer Jung]
+
+  *) mod_status: Complete the data shown for async MPMs in "auto" mode.
+     Added number of processes, number of stopping processes and number
+     of busy and idle workers.  [Rainer Jung]
+
+  *) mod_proxy: Improve the balancer member data shown in mod_status when
+     "ProxyStatus" is "On": add "busy" count and show byte counts in auto
+     mode always in units of kilobytes.  [Rainer Jung]
+
+  *) mod_proxy: If ProxyPassReverse is used for reverse mapping of relative
+     redirects, subsequent ProxyPassReverse statements, whether they are
+     relative or absolute, may fail.  PR 60408.  [Peter Haworth <pmh1wheel gmail.com>]
+
+  *) mod_ratelimit: Don't interfere with "chunked" encoding, fixing regression
+     introduced in 2.4.34.  PR 62568.  [Yann Ylavic]
+
+  *) mod_proxy_http: forward 100-continue, and minimize race conditions when
+     reusing backend connections. PR 60330. [Yann Ylavic, Jean-Frederic Clere]
+
+  *) mod_proxy: Remove load order and link dependency between mod_lbmethod_*
+     modules and mod_proxy. PR 62557. [Ruediger Pluem, William Rowe]
+
+  *) mod_md: more robust handling of http-01 challenges and hands-off when module
+     should not be involved, e.g. challenge setup by another ACME client. [Stefan Eissing]
+
+  *) ru, zh-cn and zh-tw translations of errordocs have been added.
+     Contributed by Alexander Gaganashvili and CodeingBoy
+  
   *) mod_userdir: If several directories are given in a UserDir directive, only files
      in the first existing one are checked. If the file is not found there, the
      other possible directories are not checked. The doc clearly states that they
      will be checked one by one, until a match is found or an external redirect is
      performed.  PR 59636.
      [Christophe Jaillet]
-
-  *) mod_proxy: Fix a corner case where the ProxyPassReverseCookieDomain or
-     ProxyPassReverseCookiePath directive could fail to update correctly 
-     'domain=' or 'path=' in the 'Set-Cookie' header.  PR 61560.
-     [Christophe Jaillet]
-
-  *) mod_slotmem_shm: Add generation number to shm filename to fix races
-     with graceful restarts. PRs 62044 and 62308.  [Jim Jagielski, Yann Ylavic]
 
   *) mod_rewrite: Only create the global mutex used by "RewriteMap prg:" when
      this type of map is present in the configuration.  PR62311.  
@@ -26,46 +175,7 @@ Changes with Apache 2.5.1
      PKCS#11 OpenSSL engine.  [Anderson Sasaki <ansasaki redhat.com>,
      Joe Orton]
 
-  *) mod_proxy_html: Fix variable interpolation and memory allocation failure
-     in ProxyHTMLURLMap.  [Ewald Dieterich <ewald mailbox.org>]
-
-  *) core: In ONE_PROCESS/debug mode, cleanup everything when exiting.
-     [Yann Ylavic]
-
-  *) mod_http2: restoring the v1.10.16 keepalive timeout behavioud of mod_http2 (to be verified).
-     [Stefan Eissing]
-
-  *) mod_http2: adding an abort function to slave connections' pools, so out-of-memory
-     events lead to a control process abort, as on HTTP/1.x connections. [Stefan Eissing]
-  
-  *) mod_http2: adding regular memory cleanup when transferring large response bodies. This
-     reduces memory footprint and avoids memory exhaustion when transferring large files
-     on 32-bit architectures. Fixes PR 62325. [Stefan Eissing]
-
   *) http: LimitRequestBody applies to proxied requests.  [Yann Ylavic]
-
-  *) mod_proxy_http: Fix response header thrown away after the previous one
-     was considered too large and truncated. PR 62196. [Yann Ylavic]
-
-  *) core: Add and handle AP_GETLINE_NOSPC_EOL flag for ap_getline() family
-     of functions to consume the end of line when the buffer is exhausted.
-     PR 62198. [Yann Ylavic]
-
-  *) mod_xml2enc: Fix forwarding of error metadata/responses. PR 62180.
-     [Micha Lenk <micha lenk.info>, Yann Ylavic]
-
-  *) mod_proxy_http: Add new worker parameter 'responsefieldsize' to
-     allow maximum HTTP response header size to be increased past 8192 
-     bytes.  PR62199.  [Hank Ibell <hwibell gmail.com>]
-
-  *) core: Preserve the original HTTP request method in the '%<m' LogFormat
-     when an path-based ErrorDocument is used.  PR 62186. 
-     [Micha Lenk <micha lenk.info>]
-
-  *) mod_proxy_balancer: Add hot spare member type and corresponding flag (R). Hot spare members are
-     used as drop-in replacements for unusable workers in the same load balancer set. This differs
-     from hot standbys which are only used when all workers in a set are unusable. PR 61140. [Jim
-     Riggs]
 
   *) mod_logio: Add LogIOTrackTTFU and %^FU logformat to log the time
      difference between request start and last request body byte read (finished upload).
@@ -84,40 +194,17 @@ Changes with Apache 2.5.1
      TLSv1.2 or lower ciphers are not relevant, as cipher suites are completely separate.
      This means there is a bit if a world split when simultaneously having TLSv1.2 and TLSv1.3
      connections to the same server.
-     [Stefan Eissing]
-
-  *) mod_http2: accurate reporting of h2 data input/output per request via mod_logio. Fixes
-     an issue where output sizes where counted n-times on reused slave connections. See
-     gituhub issue: https://github.com/icing/mod_h2/issues/158
-     [Stefan Eissing]
-  
-  *) mod_proxy: Do not restrict the maximum pool size for backend connections
-     any longer by the maximum number of threads per process and use a better
-     default if mod_http2 is loaded.
-     [Yann Ylavic, Ruediger Pluem, Stefan Eissing, Gregg Smith]
-
-  *) mod_ssl: Fix merging of proxy SSL context outside <Proxy> sections,
-     regression introduced in 2.4.30. PR 62232. [Rainer Jung, Yann Ylavic]
+     [Yann Ylavic, Stefan Eissing]
 
   *) mod_ssl: proper checks for libressl 2.07/8 and its TLSv1_3 support, see PR 62236.
      [Bernard Spil <brnrd@freebsd.org>]
   
-  *) mod_http2: on level trace2, log any unsuccessful HTTP/2 direct connection upgrade
-     with base64 encoding to unify its appearance in possible bug reports. [Stefan Eissing]
-
   *) mod_cgi: Add CGIScriptTimeout to make mod_cgi's timeout per-directory and
      independent of the core Timeout directive.  PR 62229.  
      [Hank Ibell <hwibell gmail.com>]
 
-  *) mod_remoteip: Restore compatibility with APR 1.4 (apr_sockaddr_is_wildcard).
-     [Eric Covener]
-
   *) mod_ssl: heavily simplified SSLPolicy. No more user defines, no propxy policies,
      just the basic "modern", "intermediate" and "old" as specified by Mozilla security.
-     [Stefan Eissing]
-
-  *) mod_remoteip: make proxy-protocol work on slave connections, e.g. in HTTP/2
-     requests. See also https://github.com/roadrunner2/mod-proxy-protocol/issues/6
      [Stefan Eissing]
 
   *) mod_md: fixes error in renew window calculation that may lead to mod_md running
@@ -128,16 +215,11 @@ Changes with Apache 2.5.1
      co-existance between mod_md and other ACME clients on the same server (implements PR62189).
      [Stefan Eissing, Arkadiusz Miskiewicz <arekm@maven.pl>]
 
-  *) mod_md: Fix compilation with OpenSSL before version 1.0.2.  [Rainer Jung]
-
   *) core: Create a conn_config_t structure to hold an extendable core config rather
      than consuming the whole pointer with the connection socket. [Graham Leggett]
 
   *) core: adding AP_DECLARE for ap_parse_vhost_addrs() and minor bumb mmn. Resolves
      building mod_ssl on Windows. [Stefan Eissing, Gregg Smith]
-
-  *) mod_http2: discourage gzip/brotli content encoding on http2-status responses as
-     they are inserted into the reponse when filters are already done. [Stefan Eissing]
 
   *) core: adding defines to allow interworking with honggfuzz without
      further patches. [Stefan Eissing, Robert Swiecki]
@@ -181,8 +263,6 @@ Changes with Apache 2.5.1
      error logging of exact ACME response when challenges failed.
      [Stefan Eissing]
 
-  *) mod_dumpio: do nothing below log level TRACE7.  [Yann Ylavic]
-
   *) mod_md: reverses most of v1.0.5 optimization of post_config init, so that
      mod_ssl can ask for certiticates without crashing. [Stefan Eissing]
 
@@ -209,9 +289,6 @@ Changes with Apache 2.5.1
      should be accepted after the authorization scheme. \t are also tolerated.
      [Christophe Jaillet]
   
-  *) mod_http2: fixed unfair scheduling when number of active connections
-     exceeded the scheduling fifo capacity. [Stefan Eissing]
-
   *) core: Support zone/scope in IPv6 link-local addresses in Listen and
      VirtualHost directives (requires APR 1.7.x or later).  PR 59396.  [Joe Orton]
 
@@ -336,10 +413,6 @@ Changes with Apache 2.5.0-alpha
   *) When using mod_status with the Event MPM, report the number of requests
      associated with an active connection in the "ACC" field. Previously
      zero was always reported with this MPM.  PR60647. [Eric Covener]
-
-  *) mod_remoteip: When overriding the useragent address from X-Forwarded-For,
-     zero out what had been initialized as the connection-level port.  PR59931.
-     [Hank Ibell <hwibell gmail.com>]
 
   *) mod_proxy_wstunnel: Reliably run before mod_proxy_http.
      [Eric Covener]
@@ -568,7 +641,9 @@ Changes with Apache 2.5.0-alpha
 
   *) mod_status, mod_echo: Fix the display of client addresses.
      They were truncated to 31 characters which is not enough for IPv6 addresses.
-     PR 54848 [Bernhard Schmidt <berni birkenwald de>]
+     This is done by deprecating the use of the 'client' field and using
+     the new 'client64' field in worker_score.
+     PR 54848 [Bernhard Schmidt <berni birkenwald de>, Jim Jagielski]
 
   *) core: merge AllowEncodedSlashes from the base configuration into
      virtual hosts. [Eric Covener]
@@ -652,14 +727,6 @@ Changes with Apache 2.5.0-alpha
      - mod_ldap: shared memory cache
      - mod_socache_shmcb, mod_socache_dbm: shared memory or dbm for cache
      [Jeff Trawick]
-
-  *) suexec: Add --enable-suexec-capabilites support on Linux, to use
-     setuid/setgid capability bits rather than a setuid root binary.
-     [Joe Orton]
-
-  *) suexec: Add support for logging to syslog as an alternative to logging
-     to a file; configure --without-suexec-logfile --with-suexec-syslog.  
-     [Joe Orton]
 
   *) mod_ssl: Add support for TLS Next Protocol Negotiation.  PR 52210.
      [Matthew Steele <mdsteele google.com>]

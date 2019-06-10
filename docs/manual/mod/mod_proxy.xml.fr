@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE modulesynopsis SYSTEM "../style/modulesynopsis.dtd">
 <?xml-stylesheet type="text/xsl" href="../style/manual.fr.xsl"?>
-<!-- English Revision: 1832294 -->
+<!-- English Revision: 1856036 -->
 <!-- French translation : Lucien GENTIS -->
 <!-- Reviewed by : Vincent Deffontaines -->
 
@@ -935,7 +935,8 @@ charge</description>
 charge des mandataires et aux membres des groupes de répartition de
 charge</description>
 <syntax>ProxySet <var>url</var> <var>clé=valeur [clé=valeur ...]</var></syntax>
-<contextlist><context>directory</context>
+<contextlist><context>server config</context><context>virtual host</context>
+<context>directory</context>
 </contextlist>
 <usage>
     <p>Cette directive propose une méthode alternative pour définir tout
@@ -1009,9 +1010,10 @@ de la version 2.4.7 du serveur HTTP Apache</compatibility>
     <note>Il est fortement recommandé de revoir le concept de <a
     href="#workers">Worker</a> avant d'aller plus loin.</note>
 
-    <note>Cette directive n'est pas supportée au sein
-    des sections <directive type="section" module="core">Directory</directive>
-    et <directive type="section" module="core">Files</directive>.</note>
+    <note>Cette directive n'est pas supportée au sein des sections <directive
+    type="section" module="core">Directory</directive>, <directive
+    type="section" module="core">If</directive> et <directive type="section"
+    module="core">Files</directive>.</note>
 
     <note type="warning">En général, la directive <directive
     module="mod_proxy">ProxyRequests</directive> doit être définie à
@@ -1022,7 +1024,7 @@ de la version 2.4.7 du serveur HTTP Apache</compatibility>
     2.4.7 du serveur HTTP Apache ; pour utiliser cette fonctionnalité,
     il suffit d'utiliser une URL cible préfixée par
     <code>unix:/path/lis.sock|</code>. Par exemple, pour mandater HTTP
-    et cibler l'UDS /home/www/socket, vous devez utiliser
+    et cibler l'UDS /home/www.socket, vous devez utiliser
     <code>unix:/home/www.socket|http://localhost/whatever/</code>. Comme
     le socket est local, le nom d'hôte utilisé (ici
     <code>localhost</code>) peut être sujet à discussion, mais il est
@@ -1295,7 +1297,8 @@ ProxyPass "/mirror/foo/i" "!"
 	<td>Contrôle la taille du tampon pour le champ de la réponse mandatée.
 	Cette taille doit être au moins égale à la taille attendue du plus grand
 	en-tête d'une réponse mandatée. Une valeur de 0 implique l'utilisation
-	de la valeur par défaut du système, à savoir 8192 octets.
+	de la valeur par défaut du système, à savoir 8192 octets.<br />
+	Disponible à partir de la version 2.4.34 du serveur HTTP Apache.
     </td></tr>
     <tr><td>keepalive</td>
         <td>Off</td>
@@ -1648,16 +1651,20 @@ ProxyPass "/" "balancer://hotcluster/ "
     
 
     <p>Le mot-clé optionnel <var>interpolate</var>, en combinaison avec la directive
-    <directive>ProxyPassInterpolateEnv</directive>, permet à ProxyPass
+    <directive module="mod_proxy">ProxyPassInterpolateEnv</directive>, permet à ProxyPass
     d'interpoler les variables d'environnement à l'aide de la syntaxe
     <var>${VARNAME}</var>. Notez que de nombreuses variables
     d'environnement standard dérivées de CGI n'existeront pas lorsque
     l'interpolation se produit ; vous devrez alors encore avoir avoir
     recours à <module>mod_rewrite</module> pour des règles
-    complexes. Notez aussi que l'interpolation n'est pas supportée dans
-    la partie protocole d'une URL. La détermination dynamique du
-    protocole peut être effectuée à l'aide de
-    <module>mod_rewrite</module> comme dans l'exemple suivant :</p>
+    complexes. Notez aussi que l'interpolation n'est supportée dans
+    la partie protocole/hostname/port d'une URL que pour les variables qui sont
+    accessibles au moment où la directive est interprétée (similairement à la
+    directive <directive module="core">Define</directive>). La détermination dynamique de
+    ces champs peut être effectuée à l'aide de
+    <module>mod_rewrite</module>. L'exemple suivant décrit comment utiliser
+    <module>mod_rewrite</module> pour définir dynamiquement le protocole à http
+    ou https :</p>
 
     <highlight language="config">
 RewriteEngine On
@@ -1790,11 +1797,27 @@ par un serveur mandaté en inverse</description>
     <module>mod_proxy_html</module>.
     </p>
 
-    <p><var>chemin</var> est le nom d'un chemin virtuel local.
-    <var>url</var> est une URL partielle pour le serveur distant. Ces
-    paramètres s'utilisent de la même façon qu'avec la directive <directive
-    module="mod_proxy">ProxyPass</directive>.</p>
+    <p><var>chemin</var> est le nom d'un chemin virtuel local. Il est combiné
+    avec le protocole, le nom d'hôte et le port pour former le préfixe de
+    remplacement de l'en-tête de réponse concerné. Ce paramètre est en général
+    identique au premier paramètre de la directive <directive
+    module="mod_proxy">ProxyPass</directive>.
+    </p>
 
+    <p><var>url</var> est une URL partielle pour le serveur distant. Lorsque le
+    serveur distant envoie les en-têtes explicitement mentionnés en commençant
+    par cette URL partielle, le préfixe du serveur distant est remplacé par un
+    préfixe qui pointe vers le mandataire inverse. Ce paramètre est en général
+    identique au second paramètre de la directive <directive
+    module="mod_proxy">ProxyPass</directive>, mais il peut être différent si le
+    serveur distant utilise un protocole, nom d'hôte, port ou chemin différent dans les
+    en-têtes concernés. Si la configuration contient une directive <directive
+    module="mod_proxy">ProxyPreserveHost</directive>, le nom d'hôte de l'URL
+    partielle correspondra peut-être déjà au nom d'hôte du mandataire inverse,
+    ce qui évitera la recherche et le remplacament effectués par cette
+    directive.
+    </p>
+    
     <p>Supposons par exemple que le serveur local a pour adresse
     <code>http://example.com/</code> ; alors</p>
 
@@ -2348,8 +2371,18 @@ les configurations de mandataires inverses</description>
     de configuration par la valeur de la variable d'environnement
     <code>nom_var</code> si l'option <var>interpolate</var> est
     spécifiée.</p>
-    <p>Conservez cette directive à off (pour les performances du
-    serveur), sauf si vous en avez réellement besoin.</p>
+    <p>La partie protocole/hostname/port de <directive>ProxyPass</directive>
+    peut contenir des variables, mais seulement celles qui sont accessibles au
+    moment où la directive est interprétée (similairement à la directive
+    <directive module="core">Define</directive>). Pour tous les autres cas,
+    utilisez plutôt <module>mod_rewrite</module>.</p> 
+    <note type="warning"><title>Avertissement concernant les performances</title>
+    <p>Laissez cette directive à off, à moins que vous n'en ayez réellemnt
+    besoin ! Par exemple, ajouter des variables à
+    <directive>ProxyPass</directive> peut entraîner l'utilisation des serveurs
+    d'arrière-plan de mod_proxy configurés par défaut, et ceux-ci ne permettent
+    pas un réglage fin comme la réutilisation des connexions, entre
+    autres...).</p> </note>
 </usage>
 </directivesynopsis>
 
@@ -2394,6 +2427,31 @@ en-têtes X-Forwarded-*</description>
     <note><title>Utilité</title>
      <p>Cette option n'est utile que dans le cas du mandat HTTP traité
      par <module>mod_proxy_http</module>.</p>
+    </note>
+</usage>
+</directivesynopsis>
+
+<directivesynopsis>
+<name>Proxy100Continue</name>
+<description>Transmission du message "100-continue" au serveur d'origine</description>
+<syntax>Proxy100Continue Off|On</syntax>
+<default>Proxy100Continue On</default>
+<contextlist><context>server config</context>
+<context>virtual host</context>
+<context>directory</context>
+</contextlist>
+<compatibility>Disponible à partir de la version 2.4.39 du serveur HTTP Apache</compatibility>
+
+<usage>
+    <p>Cette directive permet de contrôler le transfert par le mandataire du
+    message "100-continue" (<em>Expect:</em>ation) vers le serveur d'origine. Si
+    elle est définie à "On", le serveur d'origine décidera lui-même si le corps
+    de la requête HTTP doit être lu. Si elle est définie à "Off", le mandataire
+    générera lui-même une réponse intermédiaire <em>100 Continue</em> avant de
+    transférer le corps de la requête.</p>
+    <note><title>Contexte d'utilisation</title>
+     <p>Cette option n'est utilisable qu'avec les mandataires HTTP gérés par
+     <module>mod_proxy_http</module>.</p>
     </note>
 </usage>
 </directivesynopsis>

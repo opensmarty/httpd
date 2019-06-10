@@ -61,12 +61,12 @@
   Eşleştirilmesi</a></li><li><a href="#comments_section">Yorum</a></li></ul></div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="related" id="related">Kullanıcı sayfaları dizinleri</a><a title="Permanent link" href="#related" class="permalink">&para;</a></h2>
+<h2><a name="related" id="related">Kullanıcı sayfaları dizinleri</a> <a title="Permanent link" href="#related" class="permalink">&para;</a></h2>
     
     <table class="related"><tr><th>İlgili Modüller</th><th>İlgili Yönergeler</th></tr><tr><td><ul><li><code class="module"><a href="../mod/mod_userdir.html">mod_userdir</a></code></li></ul></td><td><ul><li><code class="directive"><a href="../mod/mod_userdir.html#userdir">UserDir</a></code></li><li><code class="directive"><a href="../mod/core.html#directorymatch">DirectoryMatch</a></code></li><li><code class="directive"><a href="../mod/core.html#allowoverride">AllowOverride</a></code></li></ul></td></tr></table>
     </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="userdir" id="userdir"><code>UserDir</code> ile dosya yolunun belirtilmesi</a><a title="Permanent link" href="#userdir" class="permalink">&para;</a></h2>
+<h2><a name="userdir" id="userdir"><code>UserDir</code> ile dosya yolunun belirtilmesi</a> <a title="Permanent link" href="#userdir" class="permalink">&para;</a></h2>
     
 
     <p><code class="directive"><a href="../mod/mod_userdir.html#userdir">UserDir</a></code> yönergesinde
@@ -123,7 +123,7 @@
 
   </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="redirect" id="redirect">Harici adreslere yönlendirme</a><a title="Permanent link" href="#redirect" class="permalink">&para;</a></h2>
+<h2><a name="redirect" id="redirect">Harici adreslere yönlendirme</a> <a title="Permanent link" href="#redirect" class="permalink">&para;</a></h2>
     
     <p><code class="directive"><a href="../mod/mod_userdir.html#userdir">UserDir</a></code> yönergesi
       kullanıcı dizini isteklerini harici adreslere yönlendirmek için de
@@ -138,7 +138,7 @@
     adresine yönlendirilecektir.</p>
   </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="enable" id="enable">Bu özelliği kullanacak kullanıcıların sınırlandırılması</a><a title="Permanent link" href="#enable" class="permalink">&para;</a></h2>
+<h2><a name="enable" id="enable">Bu özelliği kullanacak kullanıcıların sınırlandırılması</a> <a title="Permanent link" href="#enable" class="permalink">&para;</a></h2>
     
 
     <p><code class="directive"><a href="../mod/mod_userdir.html#userdir">UserDir</a></code> yönergesinin
@@ -164,7 +164,7 @@
 
   </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="cgi" id="cgi">Her kullanıcıya bir CGI dizini tahsis etmek</a><a title="Permanent link" href="#cgi" class="permalink">&para;</a></h2>
+<h2><a name="cgi" id="cgi">Her kullanıcıya bir CGI dizini tahsis etmek</a> <a title="Permanent link" href="#cgi" class="permalink">&para;</a></h2>
   
 
    <p>Her kullanıcıya kendine ait bir CGI dizini vermek isterseniz, bir
@@ -190,7 +190,7 @@
 
     </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="htaccess" id="htaccess">Kullanıcıların yapılandırmayı değiştirmesine izin vermek</a><a title="Permanent link" href="#htaccess" class="permalink">&para;</a></h2>
+<h2><a name="htaccess" id="htaccess">Kullanıcıların yapılandırmayı değiştirmesine izin vermek</a> <a title="Permanent link" href="#htaccess" class="permalink">&para;</a></h2>
     
 
     <p>Kullanıcıların kendilerine ayrılan bölge içinde sunucu
@@ -228,7 +228,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/trunk/howto/public_html.
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2018 The Apache Software Foundation.<br /><a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a> altında lisanslıdır.</p>
+<p class="apache">Copyright 2019 The Apache Software Foundation.<br /><a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a> altında lisanslıdır.</p>
 <p class="menu"><a href="../mod/">Modüller</a> | <a href="../mod/quickreference.html">Yönergeler</a> | <a href="http://wiki.apache.org/httpd/FAQ">SSS</a> | <a href="../glossary.html">Terimler</a> | <a href="../sitemap.html">Site Haritası</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

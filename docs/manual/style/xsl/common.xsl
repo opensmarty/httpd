@@ -419,7 +419,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/]]></xsl:text>&httpd.com
 </xsl:choose>
 <div id="footer">&lf;
     <p class="apache">
-        <xsl:text>Copyright 2018 The Apache Software Foundation.</xsl:text><br />
+        <xsl:text>Copyright 2019 The Apache Software Foundation.</xsl:text><br />
         <xsl:if test="normalize-space($message[@id='before-license'])">
             <xsl:value-of select="$message[@id='before-license']"/>
             <xsl:text> </xsl:text>
@@ -523,6 +523,7 @@ if (typeof(prettyPrint) !== 'undefined') {
           <a id="{@id}" name="{@id}">
               <xsl:apply-templates select="title" mode="print" />
           </a>
+          <xsl:text> </xsl:text>
           <a class="permalink" href="#{@id}" title="{$message[@id='permalink']}">&para;</a>
         </xsl:when>
 
@@ -542,7 +543,7 @@ if (typeof(prettyPrint) !== 'undefined') {
 <!-- ==================================================================== -->
 <!-- handle subsections (lower level headings)                            -->
 <!-- ==================================================================== -->
-<xsl:template match="section/section">
+<xsl:template match="section/section" priority="3">
 <!-- Section heading -->
 <h3>
     <xsl:choose>
@@ -567,7 +568,7 @@ if (typeof(prettyPrint) !== 'undefined') {
 <!-- ==================================================================== -->
 <!-- handle subsubsections (h4)                                           -->
 <!-- ==================================================================== -->
-<xsl:template match="section/section/section">
+<xsl:template match="section/section/section" priority="4">
 <!-- Section heading -->
 <h4>
     <xsl:choose>
@@ -1260,11 +1261,7 @@ if (typeof(prettyPrint) !== 'undefined') {
     <xsl:text>Is the document valid (try `build validate-xml`)?</xsl:text>
 </xsl:message>
 </xsl:template>
-<xsl:template match="@*">
-<xsl:copy>
-    <xsl:apply-templates select="*|@*|text()" />
-</xsl:copy>
-</xsl:template>
+<xsl:template match="@*"><xsl:copy /></xsl:template>
 <xsl:template match="br"><br /></xsl:template>
 <xsl:template match="tr"><tr><xsl:apply-templates select="*|@*|text()" /></tr></xsl:template>
 <xsl:template match="th"><th><xsl:apply-templates select="*|@*|text()" /></th></xsl:template>

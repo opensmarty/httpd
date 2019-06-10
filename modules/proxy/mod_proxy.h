@@ -240,6 +240,8 @@ typedef struct {
     /** Named back references */
     apr_array_header_t *refs;
 
+    unsigned int forward_100_continue:1;
+    unsigned int forward_100_continue_set:1;
 } proxy_dir_conf;
 
 /* if we interpolate env vars per-request, we'll need a per-request
@@ -403,6 +405,9 @@ typedef struct {
     char      uds_path[PROXY_WORKER_MAX_NAME_SIZE];   /* path to worker's unix domain socket if applicable */
     char      hcuri[PROXY_WORKER_MAX_ROUTE_SIZE];     /* health check uri */
     char      hcexpr[PROXY_WORKER_MAX_SCHEME_SIZE];   /* name of condition expr for health check */
+    char      secret[PROXY_WORKER_MAX_SECRET_SIZE]; /* authentication secret (e.g. AJP13) */
+    char      upgrade[PROXY_WORKER_MAX_SCHEME_SIZE];/* upgrade protocol used by mod_proxy_wstunnel */
+    char      hostname_ex[PROXY_RFC1035_HOSTNAME_SIZE];  /* RFC1035 compliant version of the remote backend address */
     int             lbset;      /* load balancer cluster set */
     int             retries;    /* number of retries on this worker */
     int             lbstatus;   /* Current lbstatus */
@@ -424,7 +429,7 @@ typedef struct {
         flush_auto
     } flush_packets;            /* control AJP flushing */
     hcmethod_t      method;     /* method to use for health check */
-    apr_time_t      updated;    /* timestamp of last update */
+    apr_time_t      updated;    /* timestamp of last update for dynamic workers, or queue-time of HC workers */
     apr_time_t      error_time; /* time of the last error */
     apr_interval_time_t ttl;    /* maximum amount of time in seconds a connection
                                  * may be available while exceeding the soft limit */
@@ -438,6 +443,7 @@ typedef struct {
     apr_size_t      io_buffer_size;
     apr_size_t      elected;    /* Number of times the worker was elected */
     apr_size_t      busy;       /* busyness factor */
+    apr_size_t      response_field_size; /* Size of proxy response buffer in bytes. */
     apr_port_t      port;
     apr_off_t       transferred;/* Number of bytes transferred to remote */
     apr_off_t       read;       /* Number of bytes read from remote */
@@ -456,11 +462,7 @@ typedef struct {
     unsigned int     disablereuse_set:1;
     unsigned int     was_malloced:1;
     unsigned int     is_name_matchable:1;
-    char      secret[PROXY_WORKER_MAX_SECRET_SIZE]; /* authentication secret (e.g. AJP13) */
-    char      upgrade[PROXY_WORKER_MAX_SCHEME_SIZE];/* upgrade protocol used by mod_proxy_wstunnel */
-    char      hostname_ex[PROXY_RFC1035_HOSTNAME_SIZE];  /* RFC1035 compliant version of the remote backend address */
-    apr_size_t   response_field_size; /* Size of proxy response buffer in bytes. */
-    unsigned int response_field_size_set:1;
+    unsigned int     response_field_size_set:1;
 } proxy_worker_shared;
 
 #define ALIGNED_PROXY_WORKER_SHARED_SIZE (APR_ALIGN_DEFAULT(sizeof(proxy_worker_shared)))
@@ -472,7 +474,9 @@ struct proxy_worker {
     proxy_conn_pool     *cp;    /* Connection pool to use */
     proxy_worker_shared   *s;   /* Shared data */
     proxy_balancer  *balancer;  /* which balancer am I in? */
+#if APR_HAS_THREADS
     apr_thread_mutex_t  *tmutex; /* Thread lock for updating address cache */
+#endif
     void            *context;   /* general purpose storage */
     ap_conf_vector_t *section_config; /* <Proxy>-section wherein defined */
 };
@@ -528,8 +532,10 @@ struct proxy_balancer {
     proxy_hashes hash;
     apr_time_t      wupdated;    /* timestamp of last change to workers list */
     proxy_balancer_method *lbmethod;
+#if APR_HAS_THREADS
     apr_global_mutex_t  *gmutex; /* global lock for updating list of workers */
     apr_thread_mutex_t  *tmutex; /* Thread lock for updating shm */
+#endif
     proxy_server_conf *sconf;
     void            *context;    /* general purpose storage */
     proxy_balancer_shared *s;    /* Shared data */
@@ -880,6 +886,14 @@ PROXY_DECLARE(proxy_worker *) ap_proxy_balancer_get_best_worker(proxy_balancer *
                                                                 request_rec *r,
                                                                 proxy_is_best_callback_fn_t *is_best,
                                                                 void *baton);
+/*
+ * Needed by the lb modules.
+ */
+APR_DECLARE_OPTIONAL_FN(proxy_worker *, proxy_balancer_get_best_worker,
+                                        (proxy_balancer *balancer,
+                                         request_rec *r,
+                                         proxy_is_best_callback_fn_t *is_best,
+                                         void *baton));
 
 /**
  * Find the shm of the worker as needed

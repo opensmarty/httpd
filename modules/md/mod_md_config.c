@@ -54,10 +54,18 @@
 
 #define DEF_VAL     (-1)
 
+#ifndef MD_DEFAULT_BASE_DIR
+#define MD_DEFAULT_BASE_DIR "md"
+#endif
+
 /* Default settings for the global conf */
 static md_mod_conf_t defmc = {
     NULL,
-    "md",
+#if AP_MODULE_MAGIC_AT_LEAST(20180906, 2)
+    NULL, /* apply default state-dir-relative */
+#else
+    MD_DEFAULT_BASE_DIR,
+#endif
     NULL,
     NULL,
     80,
@@ -771,7 +779,7 @@ static const char *md_config_set_pkeys(cmd_parms *cmd, void *dc,
     return apr_pstrcat(cmd->pool, "unsupported private key type \"", ptype, "\"", NULL);
 }
 
-static const char *md_config_set_notify_cmd(cmd_parms *cmd, void *arg, const char *value)
+static const char *md_config_set_notify_cmd(cmd_parms *cmd, void *mconfig, const char *arg)
 {
     md_srv_conf_t *sc = md_config_get(cmd->server);
     const char *err = ap_check_cmd_context(cmd, GLOBAL_ONLY);
@@ -779,8 +787,8 @@ static const char *md_config_set_notify_cmd(cmd_parms *cmd, void *arg, const cha
     if (err) {
         return err;
     }
-    sc->mc->notify_cmd = value;
-    (void)arg;
+    sc->mc->notify_cmd = arg;
+    (void)mconfig;
     return NULL;
 }
 
@@ -837,8 +845,8 @@ const command_rec md_cmds[] = {
                   "Time length for renewal before certificate expires (defaults to days)"),
     AP_INIT_TAKE1(     MD_CMD_REQUIREHTTPS, md_config_set_require_https, NULL, RSRC_CONF, 
                   "Redirect non-secure requests to the https: equivalent."),
-    AP_INIT_TAKE1(     MD_CMD_NOTIFYCMD, md_config_set_notify_cmd, NULL, RSRC_CONF, 
-                  "set the command to run when signup/renew of domain is complete."),
+    AP_INIT_RAW_ARGS(MD_CMD_NOTIFYCMD, md_config_set_notify_cmd, NULL, RSRC_CONF, 
+                  "set the command and optional arguments to run when signup/renew of domain is complete."),
     AP_INIT_TAKE1(     MD_CMD_BASE_SERVER, md_config_set_base_server, NULL, RSRC_CONF, 
                   "allow managing of base server outside virtual hosts."),
 
@@ -864,6 +872,12 @@ apr_status_t md_config_post_config(server_rec *s, apr_pool_t *p)
     if (mc->hsts_max_age > 0) {
         mc->hsts_header = apr_psprintf(p, "max-age=%d", mc->hsts_max_age);
     }
+
+#if AP_MODULE_MAGIC_AT_LEAST(20180906, 2)
+    if (mc->base_dir == NULL) {
+        mc->base_dir = ap_state_dir_relative(p, MD_DEFAULT_BASE_DIR);
+    }
+#endif
     
     return APR_SUCCESS;
 }

@@ -167,6 +167,7 @@ cachestoreprivate	mod/mod_cache.html#cachestoreprivate
 cgidscripttimeout	mod/mod_cgid.html#cgidscripttimeout
 cgimapextension	mod/core.html#cgimapextension
 cgipassauth	mod/core.html#cgipassauth
+cgiscripttimeout	mod/mod_cgi.html#cgiscripttimeout
 cgivar	mod/core.html#cgivar
 charsetdefault	mod/mod_charset_lite.html#charsetdefault
 charsetoptions	mod/mod_charset_lite.html#charsetoptions
@@ -214,6 +215,7 @@ dbdriver	mod/mod_dbd.html#dbdriver
 defaulticon	mod/mod_autoindex.html#defaulticon
 defaultlanguage	mod/mod_mime.html#defaultlanguage
 defaultruntimedir	mod/core.html#defaultruntimedir
+defaultstatedir	mod/core.html#defaultstatedir
 defaulttype	mod/core.html#defaulttype
 define	mod/core.html#define
 deflatealteretag	mod/mod_deflate.html#deflatealteretag
@@ -368,6 +370,7 @@ location	mod/core.html#location
 locationmatch	mod/core.html#locationmatch
 logformat	mod/mod_log_config.html#logformat
 logiotrackttfb	mod/mod_logio.html#logiotrackttfb
+logiotrackttfu	mod/mod_logio.html#logiotrackttfu
 loglevel	mod/core.html#loglevel
 logleveloverride	mod/core.html#logleveloverride
 logmessage	mod/mod_log_debug.html#logmessage
@@ -530,7 +533,10 @@ redirect	mod/mod_alias.html#redirect
 redirectmatch	mod/mod_alias.html#redirectmatch
 redirectpermanent	mod/mod_alias.html#redirectpermanent
 redirecttemp	mod/mod_alias.html#redirecttemp
+redisconnpoolttl	mod/mod_socache_redis.html#redisconnpoolttl
+redistimeout	mod/mod_socache_redis.html#redistimeout
 reflectorheader	mod/mod_reflector.html#reflectorheader
+regexdefaultoptions	mod/core.html#regexdefaultoptions
 registerhttpmethod	mod/core.html#registerhttpmethod
 remoteipheader	mod/mod_remoteip.html#remoteipheader
 remoteipinternalproxy	mod/mod_remoteip.html#remoteipinternalproxy
@@ -665,7 +671,6 @@ sslproxyengine	mod/mod_ssl.html#sslproxyengine
 sslproxymachinecertificatechainfile	mod/mod_ssl.html#sslproxymachinecertificatechainfile
 sslproxymachinecertificatefile	mod/mod_ssl.html#sslproxymachinecertificatefile
 sslproxymachinecertificatepath	mod/mod_ssl.html#sslproxymachinecertificatepath
-sslproxypolicy	mod/mod_ssl.html#sslproxypolicy
 sslproxyprotocol	mod/mod_ssl.html#sslproxyprotocol
 sslproxyverify	mod/mod_ssl.html#sslproxyverify
 sslproxyverifydepth	mod/mod_ssl.html#sslproxyverifydepth
@@ -695,6 +700,7 @@ sslverifyclient	mod/mod_ssl.html#sslverifyclient
 sslverifydepth	mod/mod_ssl.html#sslverifydepth
 startservers	mod/mpm_common.html#startservers
 startthreads	mod/mpm_common.html#startthreads
+stricthostcheck	mod/core.html#stricthostcheck
 substitute	mod/mod_substitute.html#substitute
 substituteinheritbefore	mod/mod_substitute.html#substituteinheritbefore
 substitutemaxlinelength	mod/mod_substitute.html#substitutemaxlinelength

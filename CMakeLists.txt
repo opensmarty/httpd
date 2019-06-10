@@ -458,7 +458,7 @@ SET(mod_http2_extra_sources
   modules/http2/h2_mplx.c            modules/http2/h2_push.c
   modules/http2/h2_request.c         modules/http2/h2_headers.c
   modules/http2/h2_session.c         modules/http2/h2_stream.c 
-  modules/http2/h2_switch.c          modules/http2/h2_ngn_shed.c 
+  modules/http2/h2_switch.c
   modules/http2/h2_task.c            modules/http2/h2_util.c
   modules/http2/h2_workers.c
 )
@@ -651,7 +651,6 @@ SET(LIBHTTPD_SOURCES
   modules/http/byterange_filter.c
   modules/http/chunk_filter.c
   modules/http/http_core.c
-  modules/http/http_etag.c
   modules/http/http_filters.c
   modules/http/http_protocol.c
   modules/http/http_request.c
@@ -680,6 +679,7 @@ SET(LIBHTTPD_SOURCES
   server/util_cfgtree.c
   server/util_cookies.c
   server/util_debug.c
+  server/util_etag.c
   server/util_expr_eval.c
   server/util_expr_parse.c
   server/util_fcgi.c
@@ -709,6 +709,7 @@ SET(HTTPD_INCLUDE_DIRECTORIES
   ${CMAKE_CURRENT_SOURCE_DIR}/modules/dav/main
   ${CMAKE_CURRENT_SOURCE_DIR}/modules/filters
   ${CMAKE_CURRENT_SOURCE_DIR}/modules/generators
+  ${CMAKE_CURRENT_SOURCE_DIR}/modules/http2
   ${CMAKE_CURRENT_SOURCE_DIR}/modules/md
   ${CMAKE_CURRENT_SOURCE_DIR}/modules/proxy
   ${CMAKE_CURRENT_SOURCE_DIR}/modules/session
@@ -733,6 +734,7 @@ SET(other_installed_h
   ${CMAKE_CURRENT_SOURCE_DIR}/modules/filters/mod_xml2enc.h
   ${CMAKE_CURRENT_SOURCE_DIR}/modules/generators/mod_cgi.h
   ${CMAKE_CURRENT_SOURCE_DIR}/modules/generators/mod_status.h
+  ${CMAKE_CURRENT_SOURCE_DIR}/modules/http2/mod_http2.h
   ${CMAKE_CURRENT_SOURCE_DIR}/modules/loggers/mod_log_config.h
   ${CMAKE_CURRENT_SOURCE_DIR}/modules/mappers/mod_rewrite.h
   ${CMAKE_CURRENT_SOURCE_DIR}/modules/proxy/mod_proxy.h
@@ -975,11 +977,11 @@ SET(rel_runtimedir      "logs")
 SET(rel_sysconfdir      "conf")
 FILE(GLOB_RECURSE conffiles RELATIVE ${CMAKE_SOURCE_DIR}/docs/conf "docs/conf/*")
 FOREACH(template ${conffiles})
-  STRING(REPLACE ".conf.in" ".conf" conf ${template})
+  STRING(REPLACE ".conf.in" ".conf" conf "${template}")
   FILE(READ "docs/conf/${template}" template_text)
     IF(template MATCHES ".conf.in$")
       # substitute @var@/@@var@@ in .conf.in
-      STRING(REPLACE "@@" "@" template_text ${template_text})
+      STRING(REPLACE "@@" "@" template_text "${template_text}")
       STRING(CONFIGURE "${template_text}" template_text @ONLY)
     ENDIF()
   FILE(WRITE ${CMAKE_BINARY_DIR}/conf/original/${conf} "${template_text}")

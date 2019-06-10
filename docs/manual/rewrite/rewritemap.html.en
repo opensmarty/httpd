@@ -23,7 +23,8 @@
 <div id="path">
 <a href="http://www.apache.org/">Apache</a> &gt; <a href="http://httpd.apache.org/">HTTP Server</a> &gt; <a href="http://httpd.apache.org/docs/">Documentation</a> &gt; <a href="../">Version 2.5</a> &gt; <a href="./">Rewrite</a></div><div id="page-content"><div id="preamble"><h1>Using RewriteMap</h1>
 <div class="toplang">
-<p><span>Available Languages: </span><a href="../en/rewrite/rewritemap.html" title="English">&nbsp;en&nbsp;</a></p>
+<p><span>Available Languages: </span><a href="../en/rewrite/rewritemap.html" title="English">&nbsp;en&nbsp;</a> |
+<a href="../fr/rewrite/rewritemap.html" hreflang="fr" rel="alternate" title="Français">&nbsp;fr&nbsp;</a></p>
 </div>
 
 
@@ -49,7 +50,7 @@ configuration.</div>
 </ul><h3>See also</h3><ul class="seealso"><li><a href="../mod/mod_rewrite.html">Module documentation</a></li><li><a href="intro.html">mod_rewrite introduction</a></li><li><a href="remapping.html">Redirection and remapping</a></li><li><a href="access.html">Controlling access</a></li><li><a href="vhosts.html">Virtual hosts</a></li><li><a href="proxy.html">Proxying</a></li><li><a href="advanced.html">Advanced techniques</a></li><li><a href="avoid.html">When not to use mod_rewrite</a></li><li><a href="#comments_section">Comments</a></li></ul></div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="introduction" id="introduction">Introduction</a><a title="Permanent link" href="#introduction" class="permalink">&para;</a></h2>
+<h2><a name="introduction" id="introduction">Introduction</a> <a title="Permanent link" href="#introduction" class="permalink">&para;</a></h2>
     
 
    <p>
@@ -120,7 +121,7 @@ scopes. You just can't <strong>declare</strong> it in those scopes.</p>
 may be used, and give examples of each.</p>
   </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="int" id="int">int: Internal Function</a><a title="Permanent link" href="#int" class="permalink">&para;</a></h2>
+<h2><a name="int" id="int">int: Internal Function</a> <a title="Permanent link" href="#int" class="permalink">&para;</a></h2>
     
 
     <p>When a MapType of <code>int</code> is used, the MapSource is one
@@ -164,7 +165,7 @@ RewriteRule "(.*)" "${lc:$1}" [R]</pre>
 
   </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="txt" id="txt">txt: Plain text maps</a><a title="Permanent link" href="#txt" class="permalink">&para;</a></h2>
+<h2><a name="txt" id="txt">txt: Plain text maps</a> <a title="Permanent link" href="#txt" class="permalink">&para;</a></h2>
     
 
     <p>When a MapType of <code>txt</code> is used, the MapSource is a filesystem path to a
@@ -237,7 +238,7 @@ telephone  328
 
   </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="rnd" id="rnd">rnd: Randomized Plain Text</a><a title="Permanent link" href="#rnd" class="permalink">&para;</a></h2>
+<h2><a name="rnd" id="rnd">rnd: Randomized Plain Text</a> <a title="Permanent link" href="#rnd" class="permalink">&para;</a></h2>
     
 
     <p>When a MapType of <code>rnd</code> is used, the MapSource is a
@@ -284,7 +285,7 @@ static   www1|www1|www2|www3|www4
 
   </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="dbm" id="dbm">dbm: DBM Hash File</a><a title="Permanent link" href="#dbm" class="permalink">&para;</a></h2>
+<h2><a name="dbm" id="dbm">dbm: DBM Hash File</a> <a title="Permanent link" href="#dbm" class="permalink">&para;</a></h2>
     
 
     <p>When a MapType of <code>dbm</code> is used, the MapSource is a
@@ -322,7 +323,7 @@ $ httxt2dbm -i mapfile.txt -o mapfile.map
 <div class="note">
 <p>Note that with some dbm types, more than one file is generated, with
 a common base name. For example, you may have two files named
-<code>mapfile.map.dir</code> and <code>mapfiile.map.pag</code>. This is
+<code>mapfile.map.dir</code> and <code>mapfile.map.pag</code>. This is
 normal, and you need only use the base name <code>mapfile.map</code> in
 your <code class="directive"><a href="../mod/mod_rewrite.html#rewritemap">RewriteMap</a></code> directive.</p>
 </div>
@@ -338,7 +339,7 @@ by many requests.
 
   </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="prg" id="prg">prg: External Rewriting Program</a><a title="Permanent link" href="#prg" class="permalink">&para;</a></h2>
+<h2><a name="prg" id="prg">prg: External Rewriting Program</a> <a title="Permanent link" href="#prg" class="permalink">&para;</a></h2>
 
     <p>When a MapType of <code>prg</code> is used, the MapSource is a
     filesystem path to an executable program which will providing the
@@ -405,7 +406,7 @@ this process, or if the script itself is very slow.</li>
 
 </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="dbd" id="dbd">dbd or fastdbd: SQL Query</a><a title="Permanent link" href="#dbd" class="permalink">&para;</a></h2>
+<h2><a name="dbd" id="dbd">dbd or fastdbd: SQL Query</a> <a title="Permanent link" href="#dbd" class="permalink">&para;</a></h2>
     
 
     <p>When a MapType of <code>dbd</code> or <code>fastdbd</code> is
@@ -436,7 +437,7 @@ this process, or if the script itself is very slow.</li>
 
   </div><div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
 <div class="section">
-<h2><a name="summary" id="summary">Summary</a><a title="Permanent link" href="#summary" class="permalink">&para;</a></h2>
+<h2><a name="summary" id="summary">Summary</a> <a title="Permanent link" href="#summary" class="permalink">&para;</a></h2>
     
 
     <p>The <code class="directive"><a href="../mod/mod_rewrite.html#rewritemap">RewriteMap</a></code> directive can
@@ -451,7 +452,8 @@ this process, or if the script itself is very slow.</li>
 
   </div></div>
 <div class="bottomlang">
-<p><span>Available Languages: </span><a href="../en/rewrite/rewritemap.html" title="English">&nbsp;en&nbsp;</a></p>
+<p><span>Available Languages: </span><a href="../en/rewrite/rewritemap.html" title="English">&nbsp;en&nbsp;</a> |
+<a href="../fr/rewrite/rewritemap.html" hreflang="fr" rel="alternate" title="Français">&nbsp;fr&nbsp;</a></p>
 </div><div class="top"><a href="#page-header"><img src="../images/up.gif" alt="top" /></a></div><div class="section"><h2><a id="comments_section" name="comments_section">Comments</a></h2><div class="warning"><strong>Notice:</strong><br />This is not a Q&amp;A section. Comments placed here should be pointed towards suggestions on improving the documentation or server, and may be removed again by our moderators if they are either implemented or considered invalid/off-topic. Questions on how to manage the Apache HTTP Server should be directed at either our IRC channel, #httpd, on Freenode, or sent to our <a href="http://httpd.apache.org/lists.html">mailing lists</a>.</div>
 <script type="text/javascript"><!--//--><![CDATA[//><!--
 var comments_shortname = 'httpd';
@@ -470,7 +472,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/trunk/rewrite/rewritemap
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2019 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/quickreference.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

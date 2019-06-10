@@ -39,7 +39,8 @@ typedef struct ws_baton_t {
 
 static void proxy_wstunnel_callback(void *b);
 
-static int proxy_wstunnel_pump(ws_baton_t *baton, apr_time_t timeout, int try_poll) {
+static int proxy_wstunnel_pump(ws_baton_t *baton, apr_time_t timeout, int try_poll)
+{
     request_rec *r = baton->r;
     conn_rec *c = r->connection;
     proxy_conn_rec *conn = baton->proxy_connrec;
@@ -104,7 +105,7 @@ static int proxy_wstunnel_pump(ws_baton_t *baton, apr_time_t timeout, int try_po
                 }
                 else { 
                     ap_log_rerror(APLOG_MARK, APLOG_ERR, 0, r, APLOGNO(02605)
-                            "unknown event on backconn %d", pollevent);
+                            "unknown event on backend connection %d", pollevent);
                     done = 1;
                 }
             }
@@ -152,7 +153,8 @@ static int proxy_wstunnel_pump(ws_baton_t *baton, apr_time_t timeout, int try_po
     }
 }
 
-static void proxy_wstunnel_finish(ws_baton_t *baton) { 
+static void proxy_wstunnel_finish(ws_baton_t *baton)
+{ 
     ap_log_rerror(APLOG_MARK, APLOG_TRACE1, 0, baton->r, "proxy_wstunnel_finish");
     baton->proxy_connrec->close = 1; /* new handshake expected on each back-conn */
     baton->r->connection->keepalive = AP_CONN_CLOSE;
@@ -171,9 +173,9 @@ static void proxy_wstunnel_finish(ws_baton_t *baton) {
 static void proxy_wstunnel_cancel_callback(void *b)
 { 
     ws_baton_t *baton = (ws_baton_t*)b;
-    ap_log_rerror(APLOG_MARK, APLOG_TRACE1, 0, baton->r, "proxy_wstunnel_cancel_callback, IO timed out");
+    ap_log_rerror(APLOG_MARK, APLOG_TRACE1, 0, baton->r,
+                  "proxy_wstunnel_cancel_callback, IO timed out");
     proxy_wstunnel_finish(baton);
-    return;
 }
 
 /* Invoked by the event loop when data is ready on either end. 
@@ -181,7 +183,8 @@ static void proxy_wstunnel_cancel_callback(void *b)
  *  We don't need the invoke_mtx, since we never put multiple callback events
  *  in the queue.
  */
-static void proxy_wstunnel_callback(void *b) { 
+static void proxy_wstunnel_callback(void *b)
+{ 
     int status;
     ws_baton_t *baton = (ws_baton_t*)b;
     proxyws_dir_conf *dconf = ap_get_module_config(baton->r->per_dir_config, &proxy_wstunnel_module);
@@ -276,7 +279,10 @@ static int proxy_wstunnel_canon(request_rec *r, char *url)
     if (path == NULL)
         return HTTP_BAD_REQUEST;
 
-    apr_snprintf(sport, sizeof(sport), ":%d", port);
+    if (port != def_port)
+        apr_snprintf(sport, sizeof(sport), ":%d", port);
+    else
+        sport[0] = '\0';
 
     if (ap_strchr_c(host, ':')) {
         /* if literal IPv6 address */
@@ -517,14 +523,12 @@ static int proxy_wstunnel_handler(request_rec *r, proxy_worker *worker,
     }
 
     /* Step Three: Create conn_rec */
-    if (!backend->connection) {
-        status = ap_proxy_connection_create_ex(scheme, backend, r);
-        if (status  != OK) {
-            goto cleanup;
-        }
+    status = ap_proxy_connection_create_ex(scheme, backend, r);
+    if (status  != OK) {
+        goto cleanup;
     }
 
-    /* Step Three: Process the Request */
+    /* Step Four: Process the Request */
     status = proxy_wstunnel_request(p, r, backend, worker, conf, uri, locurl,
                                   server_portstr, scheme);
 
@@ -556,6 +560,7 @@ static const char * proxyws_set_idle(cmd_parms *cmd, void *conf, const char *val
         return "ProxyWebsocketIdleTimeout timeout has wrong format";
     return NULL;
 }
+
 static const char * proxyws_set_aysnch_delay(cmd_parms *cmd, void *conf, const char *val)
 {
     proxyws_dir_conf *dconf = conf;
@@ -566,10 +571,12 @@ static const char * proxyws_set_aysnch_delay(cmd_parms *cmd, void *conf, const c
 
 static const command_rec ws_proxy_cmds[] =
 {
-    AP_INIT_TAKE1("ProxyWebsocketIdleTimeout", proxyws_set_idle, NULL, RSRC_CONF|ACCESS_CONF,
-                 "timeout for activity in either direction, unlimited by default"),
+    AP_INIT_TAKE1("ProxyWebsocketIdleTimeout", proxyws_set_idle, NULL,
+                  RSRC_CONF|ACCESS_CONF,
+                  "timeout for activity in either direction, unlimited by default"),
 
-    AP_INIT_TAKE1("ProxyWebsocketAsyncDelay", proxyws_set_aysnch_delay, NULL, RSRC_CONF|ACCESS_CONF,
+    AP_INIT_TAKE1("ProxyWebsocketAsyncDelay", proxyws_set_aysnch_delay, NULL,
+                 RSRC_CONF|ACCESS_CONF,
                  "amount of time to poll before going asynchronous"),
     {NULL}
 };

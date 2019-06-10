@@ -813,17 +813,19 @@ proxy_ftp_command(const char *cmd, request_rec *r, conn_rec *ftp_ctrl,
         APR_BRIGADE_INSERT_TAIL(bb, apr_bucket_flush_create(c->bucket_alloc));
         ap_pass_brigade(ftp_ctrl->output_filters, bb);
 
-        /* strip off the CRLF for logging */
-        apr_cpystrn(message, cmd, sizeof(message));
-        if ((crlf = strchr(message, '\r')) != NULL ||
-            (crlf = strchr(message, '\n')) != NULL)
-            *crlf = '\0';
-        if (strncmp(message,"PASS ", 5) == 0)
-            strcpy(&message[5], "****");
-        ap_log_rerror(APLOG_MARK, APLOG_TRACE2, 0, r, ">%s", message);
+        if (APLOGrtrace2(r)) {
+            /* strip off the CRLF for logging */
+            apr_cpystrn(message, cmd, sizeof(message));
+            if ((crlf = strchr(message, '\r')) != NULL ||
+                (crlf = strchr(message, '\n')) != NULL)
+                *crlf = '\0';
+            if (strncmp(message,"PASS ", 5) == 0)
+                strcpy(&message[5], "****");
+            ap_log_rerror(APLOG_MARK, APLOG_TRACE2, 0, r, ">%s", message);
+        }
     }
 
-    rc = ftp_getrc_msg(ftp_ctrl, bb, message, sizeof message);
+    rc = ftp_getrc_msg(ftp_ctrl, bb, message, sizeof(message));
     if (rc == -1 || rc == 421)
         strcpy(message,"<unable to read result>");
     if ((crlf = strchr(message, '\r')) != NULL ||
@@ -977,7 +979,9 @@ static int proxy_ftp_handler(request_rec *r, proxy_worker *worker,
     apr_status_t rv;
     conn_rec *origin, *data = NULL;
     apr_status_t err = APR_SUCCESS;
+#if APR_HAS_THREADS
     apr_status_t uerr = APR_SUCCESS;
+#endif
     apr_bucket_brigade *bb;
     char *buf, *connectname;
     apr_port_t connectport;
@@ -1117,10 +1121,12 @@ static int proxy_ftp_handler(request_rec *r, proxy_worker *worker,
 
     if (worker->s->is_address_reusable) {
         if (!worker->cp->addr) {
+#if APR_HAS_THREADS
             if ((err = PROXY_THREAD_LOCK(worker->balancer)) != APR_SUCCESS) {
                 ap_log_rerror(APLOG_MARK, APLOG_ERR, err, r, APLOGNO(01037) "lock");
                 return HTTP_INTERNAL_SERVER_ERROR;
             }
+#endif
         }
         connect_addr = worker->cp->addr;
         address_pool = worker->cp->pool;
@@ -1136,9 +1142,11 @@ static int proxy_ftp_handler(request_rec *r, proxy_worker *worker,
                                     address_pool);
     if (worker->s->is_address_reusable && !worker->cp->addr) {
         worker->cp->addr = connect_addr;
+#if APR_HAS_THREADS
         if ((uerr = PROXY_THREAD_UNLOCK(worker->balancer)) != APR_SUCCESS) {
             ap_log_rerror(APLOG_MARK, APLOG_ERR, uerr, r, APLOGNO(01038) "unlock");
         }
+#endif
     }
     /*
      * get all the possible IP addresses for the destname and loop through
@@ -1188,12 +1196,10 @@ static int proxy_ftp_handler(request_rec *r, proxy_worker *worker,
         return HTTP_SERVICE_UNAVAILABLE;
     }
 
-    if (!backend->connection) {
-        status = ap_proxy_connection_create_ex("FTP", backend, r);
-        if (status != OK) {
-            proxy_ftp_cleanup(r, backend);
-            return status;
-        }
+    status = ap_proxy_connection_create_ex("FTP", backend, r);
+    if (status != OK) {
+        proxy_ftp_cleanup(r, backend);
+        return status;
     }
 
     /* Use old naming */
@@ -1952,7 +1958,7 @@ static int proxy_ftp_handler(request_rec *r, proxy_worker *worker,
 
     apr_rfc822_date(dates, r->request_time);
     apr_table_setn(r->headers_out, "Date", dates);
-    apr_table_setn(r->headers_out, "Server", ap_get_server_description());
+    apr_table_setn(r->headers_out, "Server", ap_get_server_banner());
 
     /* set content-type */
     if (dirlisting) {

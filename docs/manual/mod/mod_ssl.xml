@@ -34,7 +34,7 @@ Layer (SSL) and Transport Layer Security (TLS) protocols</description>
 HTTP Server. SSL v2 is no longer supported.</p>
 
 <p>This module relies on <a href="http://www.openssl.org/">OpenSSL</a>
-to provide the cryptography engine.</p>
+to provide the cryptographic engine.</p>
 
 <p>Further details, discussion, and examples are provided in the
 <a href="../ssl/">SSL documentation</a>.</p>
@@ -125,7 +125,7 @@ the <directive module="mod_ssl">SSLOptions</directive> directive, the
 first (or only) attribute of any DN is added only under a non-suffixed
 name; i.e. no <code>_0</code> suffixed entries are added.</p>
 
-<p>In httpd 2.5.0 and later, an optional <em>_RAW</em> suffix may be
+<p>In httpd 2.4.32 and later, an optional <em>_RAW</em> suffix may be
 added to <em>x509</em> in a DN component, to suppress conversion of
 the attribute value to UTF-8. This must be placed after the index
 suffix (if any). For example, <code>SSL_SERVER_S_DN_OU_RAW</code> or
@@ -560,7 +560,6 @@ SSLSessionCacheTimeout 600
 <default>SSLEngine off</default>
 <contextlist><context>server config</context>
 <context>virtual host</context></contextlist>
-<compatibility>The <code>addr:port</code> parameter is available in Apache 2.4.30 and later.</compatibility>
 
 <usage>
 <p>
@@ -653,7 +652,7 @@ The available (case-insensitive) <em>protocol</em>s are:</p>
 <li><code>TLSv1.3</code> (when using OpenSSL 1.1.1 and later)
     <p>
     A new version of the TLS protocol, as defined in
-    <a href="https://github.com/tlswg/tls13-spec">RFC TBD</a>.</p></li>
+    <a href="http://www.ietf.org/rfc/rfc8446.txt">RFC 8446</a>.</p></li>
 
 <li><code>all</code>
     <p>
@@ -689,7 +688,7 @@ This complex directive uses a colon-separated <em>cipher-spec</em> string
 consisting of OpenSSL cipher specifications to configure the Cipher Suite the
 client is permitted to negotiate in the SSL handshake phase. The optional 
 protocol specifier can configure the Cipher Suite for a specific SSL version.
-Possible values include "SSL" for all SSL Protocols up to and including TLSv1.2. 
+Possible values include "SSL" for all SSL Protocols up to and including TLSv1.2.
 </p>
 <p>
 Notice that this
@@ -697,7 +696,7 @@ directive can be used both in per-server and per-directory context.
 In per-server context it applies to the standard SSL handshake when a connection
 is established. In per-directory context it forces a SSL renegotiation with the
 reconfigured Cipher Suite after the HTTP request was read but before the HTTP
-response is sent. (Since renegotiation is not</p>
+response is sent.</p>
 <p>
 If the SSL library supports TLSv1.3 (OpenSSL 1.1.1 and later), the protocol 
 specifier "TLSv1.3" can be used to configure the cipher suites for that protocol.
@@ -921,8 +920,7 @@ files, a certificate identifier can be used to identify a certificate
 stored in a token.  Currently, only <a
 href="https://tools.ietf.org/html/rfc7512">PKCS#11 URIs</a> are
 recognized as certificate identifiers, and can be used in conjunction
-with the OpenSSL <code>pkcs11</code> engine configured with <directive
-module="mod_ssl">SSLCryptoDevice</directive>.  If <directive
+with the OpenSSL <code>pkcs11</code> engine.  If <directive
 module="mod_ssl">SSLCertificateKeyFile</directive> is omitted, the
 certificate and private key can be loaded through the single
 identifier specified with <directive
@@ -976,8 +974,6 @@ thus using a custom/suitable length.
 # Example using a PEM-encoded file.
 SSLCertificateFile "/usr/local/apache2/conf/ssl.crt/server.crt"
 # Example use of a certificate and private key from a PKCS#11 token:
-SSLCryptoDevice pkcs11
-...
 SSLCertificateFile "pkcs11:token=My%20Token%20Name;id=45"
 </highlight>
 </example>
@@ -1014,19 +1010,16 @@ an embedded key must be configured after the certificates using a separate
 key file.</p>
 
 <p>As an alternative to storing private keys in files, a key
-identifier can be specified to identify a private key stored in a
+identifier can be used to identify a private key stored in a
 token.  Currently, only <a href="https://tools.ietf.org/html/rfc7512">PKCS#11 URIs</a> are recognized as private key
 identifiers, and can be used in conjunction with the OpenSSL
-<code>pkcs11</code> engine configured with <directive
-module="mod_ssl">SSLCryptoDevice</directive>.</p>
+<code>pkcs11</code> engine.</p>
 
 <example><title>Example</title>
 <highlight language="config">
 # To use a private key from a PEM-encoded file:
 SSLCertificateKeyFile "/usr/local/apache2/conf/ssl.key/server.key"
 # To use a private key from a PKCS#11 token:
-SSLCryptoDevice pkcs11
-...
 SSLCertificateKeyFile "pkcs11:token=My%20Token%20Name;id=45"
 </highlight>
 </example>
@@ -1796,6 +1789,7 @@ version of OpenSSL.
 <highlight language="config">
 SSLStrictSNIVHostCheck on
 </highlight>
+
 </example>
 </usage>
 </directivesynopsis>
@@ -1806,6 +1800,7 @@ SSLStrictSNIVHostCheck on
 <syntax>SSLProxyMachineCertificatePath <em>directory</em></syntax>
 <contextlist><context>server config</context> <context>virtual host</context>
 <context>proxy section</context></contextlist>
+<compatibility>The proxy section context is allowed in httpd 2.4.30 and later</compatibility>
 
 <usage>
 <p>
@@ -1835,6 +1830,7 @@ SSLProxyMachineCertificatePath "/usr/local/apache2/conf/proxy.crt/"
 <syntax>SSLProxyMachineCertificateFile <em>filename</em></syntax>
 <contextlist><context>server config</context> <context>virtual host</context>
 <context>proxy section</context></contextlist>
+<compatibility>The proxy section context is allowed in httpd 2.4.30 and later</compatibility>
 
 <usage>
 <p>
@@ -1863,6 +1859,7 @@ SSLProxyMachineCertificateFile "/usr/local/apache2/conf/ssl.crt/proxy.pem"
 <syntax>SSLProxyMachineCertificateChainFile <em>filename</em></syntax>
 <contextlist><context>server config</context> <context>virtual host</context>
 <context>proxy section</context></contextlist>
+<compatibility>The proxy section context is allowed in httpd 2.4.30 and later</compatibility>
 
 <usage>
 <p>
@@ -1896,6 +1893,7 @@ SSLProxyMachineCertificateChainFile "/usr/local/apache2/conf/ssl.crt/proxyCA.pem
 <default>SSLProxyVerify none</default>
 <contextlist><context>server config</context> <context>virtual host</context>
 <context>proxy section</context></contextlist>
+<compatibility>The proxy section context is allowed in httpd 2.4.30 and later</compatibility>
 
 <usage>
 
@@ -1936,6 +1934,7 @@ Certificate verification</description>
 <default>SSLProxyVerifyDepth 1</default>
 <contextlist><context>server config</context> <context>virtual host</context>
 <context>proxy section</context></contextlist>
+<compatibility>The proxy section context is allowed in httpd 2.4.30 and later</compatibility>
 
 <usage>
 <p>
@@ -1965,6 +1964,7 @@ SSLProxyVerifyDepth 10
 <default>SSLProxyCheckPeerExpire on</default>
 <contextlist><context>server config</context> <context>virtual host</context>
 <context>proxy section</context></contextlist>
+<compatibility>The proxy section context is allowed in httpd 2.4.30 and later</compatibility>
 
 <usage>
 <p>
@@ -1988,6 +1988,7 @@ SSLProxyCheckPeerExpire on
 <default>SSLProxyCheckPeerCN on</default>
 <contextlist><context>server config</context> <context>virtual host</context>
 <context>proxy section</context></contextlist>
+<compatibility>The proxy section context is allowed in httpd 2.4.30 and later</compatibility>
 
 <usage>
 <p>
@@ -2032,7 +2033,8 @@ SSLProxyCheckPeerName off
 <default>SSLProxyCheckPeerName on</default>
 <contextlist><context>server config</context> <context>virtual host</context>
 <context>proxy section</context></contextlist>
-<compatibility>Apache HTTP Server 2.4.5 and later</compatibility>
+<compatibility>Apache HTTP Server 2.4.5 and later<br />
+The proxy section context is allowed in httpd 2.4.30 and later</compatibility>
 
 <usage>
 <p>
@@ -2071,6 +2073,7 @@ improvements.
 <default>SSLProxyEngine off</default>
 <contextlist><context>server config</context> <context>virtual host</context>
 <context>proxy section</context></contextlist>
+<compatibility>The proxy section context is allowed in httpd 2.4.30 and later</compatibility>
 
 <usage>
 <p>
@@ -2105,6 +2108,7 @@ server to proxy SSL/TLS requests.</p>
 <default>SSLProxyProtocol all -SSLv3</default>
 <contextlist><context>server config</context> <context>virtual host</context>
 <context>proxy section</context></contextlist>
+<compatibility>The proxy section context is allowed in httpd 2.4.30 and later</compatibility>
 
 <usage>
 <!-- XXX Why does this have an override and not .htaccess context? -->
@@ -2126,6 +2130,7 @@ proxy handshake</description>
 <default>SSLProxyCipherSuite ALL:!ADH:RC4+RSA:+HIGH:+MEDIUM:+LOW:+EXP</default>
 <contextlist><context>server config</context> <context>virtual host</context>
 <context>proxy section</context></contextlist>
+<compatibility>The proxy section context is allowed in httpd 2.4.30 and later</compatibility>
 
 <usage>
 <p>Equivalent to <directive module="mod_ssl">SSLCipherSuite</directive>, but
@@ -2142,6 +2147,7 @@ Remote Server Auth</description>
 <syntax>SSLProxyCACertificatePath <em>directory-path</em></syntax>
 <contextlist><context>server config</context> <context>virtual host</context>
 <context>proxy section</context></contextlist>
+<compatibility>The proxy section context is allowed in httpd 2.4.30 and later</compatibility>
 
 <usage>
 <p>
@@ -2169,6 +2175,7 @@ for Remote Server Auth</description>
 <syntax>SSLProxyCACertificateFile <var>file-path</var></syntax>
 <contextlist><context>server config</context> <context>virtual host</context>
 <context>proxy section</context></contextlist>
+<compatibility>The proxy section context is allowed in httpd 2.4.30 and later</compatibility>
 
 <usage>
 <p>
@@ -2193,6 +2200,7 @@ Remote Server Auth</description>
 <syntax>SSLProxyCARevocationPath <em>directory-path</em></syntax>
 <contextlist><context>server config</context> <context>virtual host</context>
 <context>proxy section</context></contextlist>
+<compatibility>The proxy section context is allowed in httpd 2.4.30 and later</compatibility>
 
 <usage>
 <p>
@@ -2220,6 +2228,7 @@ Remote Server Auth</description>
 <syntax>SSLProxyCARevocationFile <var>file-path</var></syntax>
 <contextlist><context>server config</context> <context>virtual host</context>
 <context>proxy section</context></contextlist>
+<compatibility>The proxy section context is allowed in httpd 2.4.30 and later</compatibility>
 
 <usage>
 <p>
@@ -2245,6 +2254,7 @@ SSLProxyCARevocationFile "/usr/local/apache2/conf/ssl.crl/ca-bundle-remote-serve
 <default>SSLProxyCARevocationCheck none</default>
 <contextlist><context>server config</context> <context>virtual host</context>
 <context>proxy section</context></contextlist>
+<compatibility>The proxy section context is allowed in httpd 2.4.30 and later</compatibility>
 
 <usage>
 <p>
@@ -2361,6 +2371,7 @@ SSLCryptoDevice ubsec
 <default>SSLOCSPEnable off</default>
 <contextlist><context>server config</context>
 <context>virtual host</context></contextlist>
+<compatibility>Mode <em>leaf</em> available in httpd 2.4.34 and later</compatibility>
 
 <usage>
 <p>This option enables OCSP validation of the client certificate
@@ -2389,7 +2400,7 @@ SSLOCSPOverrideResponder on
 <directivesynopsis>
 <name>SSLOCSPDefaultResponder</name>
 <description>Set the default responder URI for OCSP validation</description>
-<syntax>SSLOCSDefaultResponder <em>uri</em></syntax>
+<syntax>SSLOCSPDefaultResponder <em>uri</em></syntax>
 <contextlist><context>server config</context>
 <context>virtual host</context></contextlist>
 
@@ -2480,8 +2491,8 @@ Responder), this option should be turned <code>off</code>.</p>
 <directivesynopsis>
 <name>SSLOCSPNoverify</name>
 <description>skip the OCSP responder certificates verification</description>
-<syntax>SSLOCSPNoverify <em>On/Off</em></syntax>
-<default>SSLOCSPNoverify Off</default>
+<syntax>SSLOCSPNoverify on|off</syntax>
+<default>SSLOCSPNoverify off</default>
 <contextlist><context>server config</context>
 <context>virtual host</context></contextlist>
 <compatibility>Available in httpd 2.4.26 and later, if using OpenSSL 0.9.7 or later</compatibility>
@@ -2886,7 +2897,7 @@ SSLOpenSSLConfCmd SignatureAlgorithms RSA+SHA384:ECDSA+SHA256
 <syntax>SSLPolicy <em>name</em></syntax>
 <contextlist><context>server config</context>
 <context>virtual host</context></contextlist>
-<compatibility>Available in httpd 2.4.30 and later</compatibility>
+<compatibility>Available in httpd 2.5.0 and later</compatibility>
 
 <usage>
 <p>This directive applies the set of SSL* directives defined

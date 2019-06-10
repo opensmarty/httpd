@@ -55,7 +55,7 @@
 <li><a href="#comments_section">Yorum</a></li></ul></div>
 
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="SuexecUserGroup" id="SuexecUserGroup">SuexecUserGroup</a> <a name="suexecusergroup" id="suexecusergroup">Yönergesi</a><a title="Permanent link" href="#suexecusergroup" class="permalink">&para;</a></h2>
+<div class="directive-section"><h2><a name="SuexecUserGroup" id="SuexecUserGroup">SuexecUserGroup</a> <a name="suexecusergroup" id="suexecusergroup">Yönergesi</a> <a title="Permanent link" href="#suexecusergroup" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Açıklama:</a></th><td>CGI betiklerini çalıştıracak kullanıcı ve grup belirtilir.
 </td></tr>
@@ -109,7 +109,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/trunk/mod/mod_suexec.htm
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2018 The Apache Software Foundation.<br /><a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a> altında lisanslıdır.</p>
+<p class="apache">Copyright 2019 The Apache Software Foundation.<br /><a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a> altında lisanslıdır.</p>
 <p class="menu"><a href="../mod/">Modüller</a> | <a href="../mod/quickreference.html">Yönergeler</a> | <a href="http://wiki.apache.org/httpd/FAQ">SSS</a> | <a href="../glossary.html">Terimler</a> | <a href="../sitemap.html">Site Haritası</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

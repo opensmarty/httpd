@@ -26,7 +26,8 @@ Release history:
     [NOTE that x.{odd}.z versions are strictly Alpha/Beta releases,
           while x.{even}.z versions are Stable/GA releases.]
 
--8s    2.5.0   : In Development.
+    2.5.1   : In development
+    2.5.0   : Tagged on November 8, 2017. Not released.
 
 Contributors looking for a mission:
 
@@ -153,6 +154,10 @@ THINGS THAT SHOULD BE CONSIDERED EARLY IN THE 2.6/3.0 DEVELOPMENT CYCLE:
   * Drop CGI-1.1-incompatible behaviors kept for compatibility reasons with
     "broken" server implementations (PR 51517). (Note that many of them are
     "broken" *because* of our behaviors.)
+
+  * Add a "normalized" list of headers for a HTTP response, rather then relying
+    on r->headers_out and r->err_headers_out, since mod_headers' behavior is
+    not really user friendly in some scenarios (example in PR 62380). 
 
 
 OLD ISSUES THAT WERE THOUGHT TO BE SHOWSTOPPERS FOR 2.4 BUT OBVIOUSLY WEREN'T:

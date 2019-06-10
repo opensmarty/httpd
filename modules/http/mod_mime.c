@@ -91,6 +91,12 @@ typedef struct {
                            * If set to 2, this value is unset and is
                            *   effectively 0.
                            */
+    /* Only use the final extension for Content-Type */
+    enum {CT_LAST_INIT, CT_LAST_ON, CT_LAST_OFF} ct_last_ext;
+    /* Only use the final extension for anything */
+    enum {ALL_LAST_INIT, ALL_LAST_ON, ALL_LAST_OFF} all_last_ext;
+    /* don't do any detection */
+    enum {NOMIME_INIT, NOMIME_ON, NOMIME_OFF} nomime;
 } mime_dir_config;
 
 typedef struct param_s {
@@ -127,6 +133,8 @@ static void *create_mime_dir_config(apr_pool_t *p, char *dummy)
     new->multimatch = MULTIMATCH_UNSET;
 
     new->use_path_info = 2;
+    new->ct_last_ext = CT_LAST_INIT;
+    new->all_last_ext = ALL_LAST_INIT;
 
     return new;
 }
@@ -238,6 +246,17 @@ static void *merge_mime_dir_configs(apr_pool_t *p, void *basev, void *addv)
     else {
         new->use_path_info = base->use_path_info;
     }
+
+    new->ct_last_ext = (add->ct_last_ext != CT_LAST_INIT)
+                           ? add->ct_last_ext
+                           : base->ct_last_ext;
+    new->all_last_ext = (add->all_last_ext != ALL_LAST_INIT)
+                           ? add->all_last_ext
+                           : base->all_last_ext;
+    new->nomime = (add->nomime != NOMIME_INIT)
+                           ? add->nomime
+                           : base->nomime;
+
 
     return new;
 }
@@ -364,6 +383,39 @@ static const char *multiviews_match(cmd_parms *cmd, void *m_,
     return NULL;
 }
 
+static const char *add_mime_options(cmd_parms *cmd, void *in_dc,
+                                    const char *flag)
+{
+    mime_dir_config *dc = in_dc;
+
+    if (!strcasecmp(flag, "TypesLastExtension")) {
+        dc->ct_last_ext = CT_LAST_ON;
+    }
+    else if (!strcasecmp(flag, "NoTypesLastExtension")) {
+        dc->ct_last_ext = CT_LAST_OFF;
+    }
+    else if (!strcasecmp(flag, "AllLastExtension")) {
+        dc->all_last_ext = ALL_LAST_ON;
+    }
+    else if (!strcasecmp(flag, "NoAllLastExtension")) {
+        dc->all_last_ext = ALL_LAST_OFF;
+    }
+    else if (!strcasecmp(flag, "Disable")) {
+        dc->nomime = NOMIME_ON;
+    }
+    else if (!strcasecmp(flag, "Enable")) {
+        dc->nomime = NOMIME_OFF;
+    }
+    else {
+        return apr_pstrcat(cmd->temp_pool,
+                           "Invalid MimeOptions option: ",
+                           flag,
+                           NULL);
+    }
+
+    return NULL;
+}
+
 static const command_rec mime_cmds[] =
 {
     AP_INIT_ITERATE2("AddCharset", add_extension_info,
@@ -421,6 +473,11 @@ static const command_rec mime_cmds[] =
     AP_INIT_FLAG("ModMimeUsePathInfo", ap_set_flag_slot,
         (void *)APR_OFFSETOF(mime_dir_config, use_path_info), ACCESS_CONF,
         "Set to 'yes' to allow mod_mime to use path info for type checking"),
+    AP_INIT_ITERATE("MimeOptions",
+                    add_mime_options,
+                    NULL,
+                    OR_FILEINFO,
+                    "valid options: [No]TypesLastExtension, [No]AllLastExtension"),
     {NULL}
 };
 
@@ -769,6 +826,10 @@ static int find_ct(request_rec *r)
 
     conf = (mime_dir_config *)ap_get_module_config(r->per_dir_config,
                                                    &mime_module);
+    if (conf->nomime == NOMIME_ON) {
+        return DECLINED;
+    }
+
     exception_list = apr_array_make(r->pool, 2, sizeof(char *));
 
     /* If use_path_info is explicitly set to on (value & 1 == 1), append. */
@@ -817,9 +878,15 @@ static int find_ct(request_rec *r)
         const extension_info *exinfo = NULL;
         int found;
         char *extcase;
+        int skipct = (conf->ct_last_ext == CT_LAST_ON) && (*fn);
+        int skipall = (conf->all_last_ext == ALL_LAST_ON) && (*fn);
 
         if (*ext == '\0') {  /* ignore empty extensions "bad..html" */
             continue;
+        }
+
+        if (skipall) { 
+            continue; 
         }
 
         found = 0;
@@ -834,7 +901,7 @@ static int find_ct(request_rec *r)
                                                    ext, APR_HASH_KEY_STRING);
         }
 
-        if (exinfo == NULL || !exinfo->forced_type) {
+        if ((exinfo == NULL || !exinfo->forced_type) && !skipct) {
             if ((type = apr_hash_get(mime_type_extensions, ext,
                                      APR_HASH_KEY_STRING)) != NULL) {
                 ap_set_content_type(r, (char*) type);
@@ -845,7 +912,7 @@ static int find_ct(request_rec *r)
         if (exinfo != NULL) {
 
             /* empty string is treated as special case for RemoveType */
-            if (exinfo->forced_type && *exinfo->forced_type) {
+            if ((exinfo->forced_type && *exinfo->forced_type) && !skipct) {
                 ap_set_content_type(r, exinfo->forced_type);
                 found = 1;
             }
@@ -989,9 +1056,7 @@ static int find_ct(request_rec *r)
     if (!r->content_languages && conf->default_language) {
         const char **new;
 
-        if (!r->content_languages) {
-            r->content_languages = apr_array_make(r->pool, 2, sizeof(char *));
-        }
+        r->content_languages = apr_array_make(r->pool, 2, sizeof(char *));
         new = (const char **)apr_array_push(r->content_languages);
         *new = conf->default_language;
     }

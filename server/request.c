@@ -167,6 +167,8 @@ AP_DECLARE(int) ap_process_request_internal(request_rec *r)
     int file_req = (r->main && r->filename);
     int access_status;
     core_dir_config *d;
+    core_server_config *sconf =
+        ap_get_core_module_config(r->server->module_config);
 
     /* Ignore embedded %2F's in path for proxy requests */
     if (!r->proxyreq && r->parsed_uri.path) {
@@ -191,6 +193,12 @@ AP_DECLARE(int) ap_process_request_internal(request_rec *r)
     }
 
     ap_getparents(r->uri);     /* OK --- shrinking transformations... */
+    if (sconf->merge_slashes != AP_CORE_CONFIG_OFF) { 
+        ap_no2slash(r->uri);
+        if (r->parsed_uri.path) {
+            ap_no2slash(r->parsed_uri.path);
+        }
+     }
 
     /* All file subrequests are a huge pain... they cannot bubble through the
      * next several steps.  Only file subrequests are allowed an empty uri,
@@ -1415,20 +1423,7 @@ AP_DECLARE(int) ap_location_walk(request_rec *r)
 
     cache = prep_walk_cache(AP_NOTE_LOCATION_WALK, r);
     cached = (cache->cached != NULL);
-
-    /* Location and LocationMatch differ on their behaviour w.r.t. multiple
-     * slashes.  Location matches multiple slashes with a single slash,
-     * LocationMatch doesn't.  An exception, for backwards brokenness is
-     * absoluteURIs... in which case neither match multiple slashes.
-     */
-    if (r->uri[0] != '/') {
-        entry_uri = r->uri;
-    }
-    else {
-        char *uri = apr_pstrdup(r->pool, r->uri);
-        ap_no2slash(uri);
-        entry_uri = uri;
-    }
+    entry_uri = r->uri;
 
     /* If we have an cache->cached location that matches r->uri,
      * and the vhost's list of locations hasn't changed, we can skip
@@ -1495,7 +1490,7 @@ AP_DECLARE(int) ap_location_walk(request_rec *r)
                     pmatch = apr_palloc(rxpool, nmatch*sizeof(ap_regmatch_t));
                 }
 
-                if (ap_regexec(entry_core->r, r->uri, nmatch, pmatch, 0)) {
+                if (ap_regexec(entry_core->r, entry_uri, nmatch, pmatch, 0)) {
                     continue;
                 }
 
@@ -1505,7 +1500,7 @@ AP_DECLARE(int) ap_location_walk(request_rec *r)
                         apr_table_setn(r->subprocess_env,
                                        ((const char **)entry_core->refs->elts)[i],
                                        apr_pstrndup(r->pool,
-                                       r->uri + pmatch[i].rm_so,
+                                       entry_uri + pmatch[i].rm_so,
                                        pmatch[i].rm_eo - pmatch[i].rm_so));
                     }
                 }
@@ -2066,9 +2061,13 @@ AP_CORE_DECLARE_NONSTD(apr_status_t) ap_sub_req_output_filter(ap_filter_t *f,
 AP_CORE_DECLARE_NONSTD(apr_status_t) ap_request_core_filter(ap_filter_t *f,
                                                             apr_bucket_brigade *bb)
 {
-    apr_bucket *flush_upto = NULL;
     apr_status_t status = APR_SUCCESS;
-    apr_bucket_brigade *tmp_bb = f->ctx;
+    apr_read_type_e block = APR_NONBLOCK_READ;
+    conn_rec *c = f->r->connection;
+    apr_bucket *flush_upto = NULL;
+    apr_bucket_brigade *tmp_bb;
+    apr_size_t tmp_bb_len = 0;
+    core_server_config *conf;
     int seen_eor = 0;
 
     /*
@@ -2080,21 +2079,21 @@ AP_CORE_DECLARE_NONSTD(apr_status_t) ap_request_core_filter(ap_filter_t *f,
         return ap_pass_brigade(f->next, bb);
     }
 
-    if (!tmp_bb) {
-        const char *tmp_bb_key = "ap_request_core_filter_bb";
-        tmp_bb = (void *)apr_table_get(f->c->notes, tmp_bb_key);
-        if (!tmp_bb) {
-            tmp_bb = apr_brigade_create(f->c->pool, f->c->bucket_alloc);
-            apr_table_setn(f->c->notes, tmp_bb_key, (void *)tmp_bb);
-        }
-        f->ctx = tmp_bb;
-    }
+    conf = ap_get_core_module_config(f->r->server->module_config);
 
     /* Reinstate any buffered content */
     ap_filter_reinstate_brigade(f, bb, &flush_upto);
 
-    while (!APR_BRIGADE_EMPTY(bb)) {
+    /* After EOR is passed downstream, anything pooled on the request may
+     * be destroyed (including bb!), but not tmp_bb which is acquired from
+     * c->pool (and released after the below loop).
+     */
+    tmp_bb = ap_acquire_brigade(f->c);
+
+    /* Don't touch *bb after seen_eor */
+    while (status == APR_SUCCESS && !seen_eor && !APR_BRIGADE_EMPTY(bb)) {
         apr_bucket *bucket = APR_BRIGADE_FIRST(bb);
+        int do_pass = 0;
 
         if (AP_BUCKET_IS_EOR(bucket)) {
             /* pass out everything and never come back again,
@@ -2103,12 +2102,11 @@ AP_CORE_DECLARE_NONSTD(apr_status_t) ap_request_core_filter(ap_filter_t *f,
             APR_BRIGADE_CONCAT(tmp_bb, bb);
             ap_remove_output_filter(f);
             seen_eor = 1;
-            f->r = NULL;
         }
         else {
             /* if the core has set aside data, back off and try later */
             if (!flush_upto) {
-                if (ap_filter_should_yield(f)) {
+                if (ap_filter_should_yield(f->next)) {
                     break;
                 }
             }
@@ -2120,33 +2118,62 @@ AP_CORE_DECLARE_NONSTD(apr_status_t) ap_request_core_filter(ap_filter_t *f,
              * something safe to pass down to the connection filters without
              * needing to be set aside.
              */
-            if (!APR_BUCKET_IS_METADATA(bucket)
-                    && bucket->length == (apr_size_t)-1) {
+            if (bucket->length == (apr_size_t)-1) {
                 const char *data;
                 apr_size_t size;
-                if (APR_SUCCESS
-                        != (status = apr_bucket_read(bucket, &data, &size,
-                                APR_BLOCK_READ))) {
-                    return status;
+
+                status = apr_bucket_read(bucket, &data, &size, block);
+                if (status != APR_SUCCESS) {
+                    if (!APR_STATUS_IS_EAGAIN(status)
+                            || block != APR_NONBLOCK_READ) {
+                        break;
+                    }
+                    /* Flush everything so far and retry in blocking mode */
+                    bucket = apr_bucket_flush_create(c->bucket_alloc);
+                    block = APR_BLOCK_READ;
+                }
+                else {
+                    tmp_bb_len += size;
+                    block = APR_NONBLOCK_READ;
                 }
             }
+            else {
+                tmp_bb_len += bucket->length;
+            }
 
-            /* pass each bucket down the chain */
+            /* move the bucket to tmp_bb and check whether it exhausts bb or
+             * brings tmp_bb above the limit; in both cases it's time to pass
+             * everything down the chain.
+             */
             APR_BUCKET_REMOVE(bucket);
             APR_BRIGADE_INSERT_TAIL(tmp_bb, bucket);
+            if (APR_BRIGADE_EMPTY(bb)
+                    || APR_BUCKET_IS_FLUSH(bucket)
+                    || tmp_bb_len >= conf->flush_max_threshold) {
+                do_pass = 1;
+            }
         }
 
-        status = ap_pass_brigade(f->next, tmp_bb);
-        if (seen_eor || (status != APR_SUCCESS &&
-                         !APR_STATUS_IS_EOF(status))) {
+        if (do_pass || seen_eor) {
+            status = ap_pass_brigade(f->next, tmp_bb);
             apr_brigade_cleanup(tmp_bb);
-            return status;
+            tmp_bb_len = 0;
         }
-
-        apr_brigade_cleanup(tmp_bb);
     }
 
-    return ap_filter_setaside_brigade(f, bb);
+    /* Don't touch *bb after seen_eor */
+    if (!seen_eor) {
+        apr_status_t rv;
+        APR_BRIGADE_PREPEND(bb, tmp_bb);
+        rv = ap_filter_setaside_brigade(f, bb);
+        if (status == APR_SUCCESS) {
+            status = rv;
+        }
+    }
+
+    ap_release_brigade(f->c, tmp_bb);
+
+    return status;
 }
 
 extern APR_OPTIONAL_FN_TYPE(authz_some_auth_required) *ap__authz_ap_some_auth_required;

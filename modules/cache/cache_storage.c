@@ -270,18 +270,19 @@ int cache_select(cache_request_rec *cache, request_rec *r)
              * language negotiated document in a different language by mistake.
              *
              * This code makes the assumption that the storage manager will
-             * cache the req_hdrs if the response contains a Vary
-             * header.
+             * cache the req_hdrs if the response contains a Vary header.
              *
              * RFC2616 13.6 and 14.44 describe the Vary mechanism.
              */
-            vary = cache_strqtok(
-                    apr_pstrdup(r->pool,
-                            cache_table_getm(r->pool, h->resp_hdrs, "Vary")),
-                    CACHE_SEPARATOR, &last);
-            while (vary) {
+            for (rv = cache_strqtok(apr_pstrdup(r->pool,
+                                                cache_table_getm(r->pool,
+                                                                 h->resp_hdrs,
+                                                                 "Vary")),
+                                    &vary, NULL, &last);
+                 rv == APR_SUCCESS;
+                 rv = cache_strqtok(NULL, &vary, NULL, &last))
+            {
                 const char *h1, *h2;
-
                 /*
                  * is this header in the request and the header in the cached
                  * request identical? If not, we give up and do a straight get
@@ -301,7 +302,6 @@ int cache_select(cache_request_rec *cache, request_rec *r)
                     mismatch = 1;
                     break;
                 }
-                vary = cache_strqtok(NULL, CACHE_SEPARATOR, &last);
             }
 
             /* no vary match, try next provider */
@@ -549,7 +549,7 @@ static apr_status_t cache_canonicalise_key(request_rec *r, apr_pool_t* p,
     }
     else {
         if (conf->base_uri && conf->base_uri->port_str) {
-            port_str = conf->base_uri->port_str;
+            port_str = apr_pstrcat(p, ":", conf->base_uri->port_str, NULL);
         }
         else if (conf->base_uri && conf->base_uri->hostname) {
             port_str = "";

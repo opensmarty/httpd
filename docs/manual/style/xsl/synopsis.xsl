@@ -335,7 +335,7 @@
                          is repeated.
                      -->
                     <xsl:choose>
-                        <xsl:when test="current()[@type='section']">
+                        <xsl:when test="@type='section'">
                             <xsl:apply-templates select="$this[name=current()/name and @type='section']" />
                         </xsl:when>
                         <xsl:otherwise>
@@ -426,6 +426,7 @@
                 </a>
             </xsl:otherwise>
             </xsl:choose>
+        <xsl:text> </xsl:text>
         <a class="permalink" href="#{$lowername}" title="{$message[@id='permalink']}">&para;</a>
         </h2>&lf;
 

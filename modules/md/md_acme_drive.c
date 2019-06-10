@@ -162,7 +162,8 @@ static apr_status_t ad_setup_authz(md_proto_driver_t *d)
     apr_status_t rv;
     md_t *md = ad->md;
     md_acme_authz_t *authz;
-    int i, changed;
+    int i;
+    int changed = 0;
     
     assert(ad->md);
     assert(ad->acme);
@@ -186,18 +187,20 @@ static apr_status_t ad_setup_authz(md_proto_driver_t *d)
     }
     
     /* Remove anything we no longer need */
-    for (i = 0; i < ad->authz_set->authzs->nelts; ++i) {
+    for (i = 0; i < ad->authz_set->authzs->nelts;) {
         authz = APR_ARRAY_IDX(ad->authz_set->authzs, i, md_acme_authz_t*);
         if (!md_contains(md, authz->domain, 0)) {
             md_acme_authz_set_remove(ad->authz_set, authz->domain);
             changed = 1;
+        }
+        else {
+            ++i;
         }
     }
     
     /* Add anything we do not already have */
     for (i = 0; i < md->domains->nelts && APR_SUCCESS == rv; ++i) {
         const char *domain = APR_ARRAY_IDX(md->domains, i, const char *);
-        changed = 0;
         authz = md_acme_authz_set_get(ad->authz_set, domain);
         if (authz) {
             /* check valid */
@@ -664,6 +667,14 @@ static apr_status_t acme_driver_init(md_proto_driver_t *d)
                       " port 443 is needed.", d->md->name);
         return APR_EGENERAL;
     }
+    else if (ad->ca_challenges->nelts == 1 
+        && md_array_str_index(ad->ca_challenges, MD_AUTHZ_TYPE_TLSSNI01, 0, 0) >= 0) {
+        md_log_perror(MD_LOG_MARK, MD_LOG_WARNING, 0, d->p, "%s: only challenge type '%s' "
+                      "is available. This method of obtaining certificates will be "
+                      "discontinued by Let's Encrypt and other CAs from early 2019 on, "
+                      "if it is not already disabled for you.", 
+                      d->md->name, MD_AUTHZ_TYPE_TLSSNI01);
+    } 
     
     md_log_perror(MD_LOG_MARK, MD_LOG_TRACE1, 0, d->p, "%s: init driver", d->md->name);
     

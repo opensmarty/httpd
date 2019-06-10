@@ -20,7 +20,20 @@
 #include "apr_fnmatch.h"
 #include "apr_hash.h"
 #include "apr_thread_proc.h"    /* for RLIMIT stuff */
+
+#include "apr_crypto.h"
+#if defined(APU_HAVE_CRYPTO) && APU_HAVE_CRYPTO && \
+    defined(APU_HAVE_CRYPTO_PRNG) && APU_HAVE_CRYPTO_PRNG
+#define USE_APR_CRYPTO_PRNG 1
+#else
+#define USE_APR_CRYPTO_PRNG 0
 #include "apr_random.h"
+#endif
+
+#include "apr_version.h"
+#if APR_MAJOR_VERSION < 2
+#include "apu_version.h"
+#endif
 
 #define APR_WANT_IOVEC
 #define APR_WANT_STRFUNC
@@ -83,6 +96,9 @@
 #define AP_CONTENT_MD5_ON    1
 #define AP_CONTENT_MD5_UNSET 2
 
+#define AP_FLUSH_MAX_THRESHOLD 65536
+#define AP_FLUSH_MAX_PIPELINED 5
+
 APR_HOOK_STRUCT(
     APR_HOOK_LINK(get_mgmt_items)
     APR_HOOK_LINK(insert_network_bucket)
@@ -131,6 +147,8 @@ static apr_table_t *server_config_defined_vars = NULL;
 AP_DECLARE_DATA int ap_main_state = AP_SQ_MS_INITIAL_STARTUP;
 AP_DECLARE_DATA int ap_run_mode = AP_SQ_RM_UNKNOWN;
 AP_DECLARE_DATA int ap_config_generation = 0;
+
+static const char *core_state_dir;
 
 typedef struct {
     apr_ipsubnet_t *subnet;
@@ -398,6 +416,13 @@ static void *merge_core_dir_configs(apr_pool_t *a, void *basev, void *newv)
     if (new->enable_sendfile != ENABLE_SENDFILE_UNSET) {
         conf->enable_sendfile = new->enable_sendfile;
     }
+ 
+    if (new->read_buf_size) {
+        conf->read_buf_size = new->read_buf_size;
+    }
+    else {
+        conf->read_buf_size = base->read_buf_size;
+    }
 
     if (new->allow_encoded_slashes_set) {
         conf->allow_encoded_slashes = new->allow_encoded_slashes;
@@ -474,14 +499,13 @@ static void *create_core_server_config(apr_pool_t *a, server_rec *s)
         apr_table_setn(conf->accf_map, "http", "data");
         apr_table_setn(conf->accf_map, "https", "data");
 #endif
+
+        conf->flush_max_threshold = AP_FLUSH_MAX_THRESHOLD;
+        conf->flush_max_pipelined = AP_FLUSH_MAX_PIPELINED;
     }
-    /* pcalloc'ed - we have NULL's/0's
-    else ** is_virtual ** {
-        conf->ap_document_root = NULL;
-        conf->access_name = NULL;
-        conf->accf_map = NULL;
+    else {
+        conf->flush_max_pipelined = -1;
     }
-     */
 
     /* initialization, no special case for global context */
 
@@ -503,6 +527,8 @@ static void *create_core_server_config(apr_pool_t *a, server_rec *s)
     conf->protocols = apr_array_make(a, 5, sizeof(const char *));
     conf->protocols_honor_order = -1;
     conf->async_filter = 0;
+    conf->strict_host_check= AP_CORE_CONFIG_UNSET; 
+    conf->merge_slashes    = AP_CORE_CONFIG_UNSET; 
 
     return (void *)conf;
 }
@@ -585,10 +611,25 @@ static void *merge_core_server_configs(apr_pool_t *p, void *basev, void *virtv)
     conf->protocols_honor_order = ((virt->protocols_honor_order < 0) ?
                                        base->protocols_honor_order :
                                        virt->protocols_honor_order);
+
     conf->async_filter = ((virt->async_filter_set) ?
                                        virt->async_filter :
                                        base->async_filter);
     conf->async_filter_set = base->async_filter_set || virt->async_filter_set;
+
+    conf->flush_max_threshold = (virt->flush_max_threshold)
+                                  ? virt->flush_max_threshold
+                                  : base->flush_max_threshold;
+    conf->flush_max_pipelined = (virt->flush_max_pipelined >= 0)
+                                  ? virt->flush_max_pipelined
+                                  : base->flush_max_pipelined;
+
+    conf->strict_host_check = (virt->strict_host_check != AP_CORE_CONFIG_UNSET)
+                              ? virt->strict_host_check 
+                              : base->strict_host_check;
+
+    AP_CORE_MERGE_FLAG(strict_host_check, conf, base, virt);
+    AP_CORE_MERGE_FLAG(merge_slashes, conf, base, virt);
 
     return conf;
 }
@@ -1251,6 +1292,13 @@ AP_DECLARE(apr_off_t) ap_get_limit_req_body(const request_rec *r)
     return d->limit_req_body;
 }
 
+AP_DECLARE(apr_size_t) ap_get_read_buf_size(const request_rec *r)
+{
+    core_dir_config *d = ap_get_core_module_config(r->per_dir_config);
+
+    return d->read_buf_size ? d->read_buf_size : AP_IOBUFSIZE;
+}
+
 
 /*****************************************************************
  *
@@ -1395,7 +1443,7 @@ AP_DECLARE(const char *) ap_resolve_env(apr_pool_t *p, const char * word)
                 if (server_config_defined_vars)
                     word = apr_table_get(server_config_defined_vars, name);
                 if (!word)
-                    word = getenv(name);
+                    word = apr_pstrdup(p, getenv(name));
                 if (word) {
                     current->string = word;
                     current->len = strlen(word);
@@ -1441,12 +1489,15 @@ AP_DECLARE(const char *) ap_resolve_env(apr_pool_t *p, const char * word)
     return res_buf;
 }
 
-static int reset_config_defines(void *dummy)
+/* pconf cleanup - clear global variables set from config here. */
+static apr_status_t reset_config(void *dummy)
 {
     ap_server_config_defines = saved_server_config_defines;
     saved_server_config_defines = NULL;
     server_config_defined_vars = NULL;
-    return OK;
+    core_state_dir = NULL;
+
+    return APR_SUCCESS;
 }
 
 /*
@@ -1582,7 +1633,7 @@ static const char *set_gprof_dir(cmd_parms *cmd, void *dummy, const char *arg)
         return err;
     }
 
-    conf->gprof_dir = arg;
+    conf->gprof_dir = apr_pstrdup(cmd->pool, arg);
     return NULL;
 }
 #endif /*GPROF*/
@@ -1925,7 +1976,12 @@ static const char *set_qualify_redirect_url(cmd_parms *cmd, void *d_, int flag)
 
     return NULL;
 }
-
+static const char *set_core_server_flag(cmd_parms *cmd, void *s_, int flag)
+{
+    core_server_config *conf =
+        ap_get_core_module_config(cmd->server->module_config);
+    return ap_set_flag_slot(cmd, conf, flag);
+}
 static const char *set_override_list(cmd_parms *cmd, void *d_, int argc, char *const argv[])
 {
     core_dir_config *d = d_;
@@ -2273,6 +2329,65 @@ static const char *set_enable_sendfile(cmd_parms *cmd, void *d_,
     else {
         return "parameter must be 'on' or 'off'";
     }
+
+    return NULL;
+}
+
+static const char *set_read_buf_size(cmd_parms *cmd, void *d_,
+                                     const char *arg)
+{
+    core_dir_config *d = d_;
+    apr_off_t size;
+    char *end;
+
+    if (apr_strtoff(&size, arg, &end, 10)
+            || size < 0 || size > APR_SIZE_MAX || *end)
+        return apr_pstrcat(cmd->pool,
+                           "parameter must be a number between 0 and "
+                           APR_STRINGIFY(APR_SIZE_MAX) "): ",
+                           arg, NULL);
+
+    d->read_buf_size = (apr_size_t)size;
+
+    return NULL;
+}
+
+static const char *set_flush_max_threshold(cmd_parms *cmd, void *d_,
+                                           const char *arg)
+{
+    core_server_config *conf =
+        ap_get_core_module_config(cmd->server->module_config);
+    apr_off_t size;
+    char *end;
+
+    if (apr_strtoff(&size, arg, &end, 10)
+            || size <= 0 || size > APR_SIZE_MAX || *end)
+        return apr_pstrcat(cmd->pool,
+                           "parameter must be a number between 1 and "
+                           APR_STRINGIFY(APR_SIZE_MAX) "): ",
+                           arg, NULL);
+
+    conf->flush_max_threshold = (apr_size_t)size;
+
+    return NULL;
+}
+
+static const char *set_flush_max_pipelined(cmd_parms *cmd, void *d_,
+                                           const char *arg)
+{
+    core_server_config *conf =
+        ap_get_core_module_config(cmd->server->module_config);
+    apr_off_t num;
+    char *end;
+
+    if (apr_strtoff(&num, arg, &end, 10)
+            || num < 0 || num > APR_INT32_MAX || *end)
+        return apr_pstrcat(cmd->pool,
+                           "parameter must be a number between 0 and "
+                           APR_STRINGIFY(APR_INT32_MAX) ": ",
+                           arg, NULL);
+
+    conf->flush_max_pipelined = (apr_int32_t)num;
 
     return NULL;
 }
@@ -3162,6 +3277,24 @@ static const char *set_runtime_dir(cmd_parms *cmd, void *dummy, const char *arg)
                             APR_FILEPATH_TRUENAME, cmd->pool) != APR_SUCCESS)
         || !ap_is_directory(cmd->temp_pool, ap_runtime_dir)) {
         return "DefaultRuntimeDir must be a valid directory, absolute or relative to ServerRoot";
+    }
+
+    return NULL;
+}
+
+static const char *set_state_dir(cmd_parms *cmd, void *dummy, const char *arg)
+{
+    const char *err = ap_check_cmd_context(cmd, GLOBAL_ONLY);
+
+    if (err != NULL) {
+        return err;
+    }
+
+    if ((apr_filepath_merge((char**)&core_state_dir, NULL,
+                            ap_server_root_relative(cmd->temp_pool, arg),
+                            APR_FILEPATH_TRUENAME, cmd->pool) != APR_SUCCESS)
+        || !ap_is_directory(cmd->temp_pool, core_state_dir)) {
+        return "DefaultStateDir must be a valid directory, absolute or relative to ServerRoot";
     }
 
     return NULL;
@@ -4586,6 +4719,12 @@ AP_INIT_TAKE1("EnableMMAP", set_enable_mmap, NULL, OR_FILEINFO,
   "Controls whether memory-mapping may be used to read files"),
 AP_INIT_TAKE1("EnableSendfile", set_enable_sendfile, NULL, OR_FILEINFO,
   "Controls whether sendfile may be used to transmit files"),
+AP_INIT_TAKE1("ReadBufferSize", set_read_buf_size, NULL, OR_FILEINFO,
+  "Size (in bytes) of the memory buffers used to read data"),
+AP_INIT_TAKE1("FlushMaxThreshold", set_flush_max_threshold, NULL, RSRC_CONF,
+  "Maximum size (in bytes) above which pending data are flushed (blocking) to the network"),
+AP_INIT_TAKE1("FlushMaxPipelined", set_flush_max_pipelined, NULL, RSRC_CONF,
+  "Number of pipelined/pending responses above which they are flushed to the network"),
 
 /* Old server config file commands */
 
@@ -4610,6 +4749,8 @@ AP_INIT_TAKE1("ServerRoot", set_server_root, NULL, RSRC_CONF | EXEC_ON_READ,
   "Common directory of server-related files (logs, confs, etc.)"),
 AP_INIT_TAKE1("DefaultRuntimeDir", set_runtime_dir, NULL, RSRC_CONF | EXEC_ON_READ,
   "Common directory for run-time files (shared memory, locks, etc.)"),
+AP_INIT_TAKE1("DefaultStateDir", set_state_dir, NULL, RSRC_CONF | EXEC_ON_READ,
+  "Common directory for persistent state (databases, long-lived caches, etc.)"),
 AP_INIT_TAKE12("ErrorLog", set_errorlog,
   (void *)APR_OFFSETOF(server_rec, error_fname), RSRC_CONF,
   "The filename of the error log"),
@@ -4714,7 +4855,10 @@ AP_INIT_TAKE2("CGIVar", set_cgi_var, NULL, OR_FILEINFO,
 AP_INIT_FLAG("QualifyRedirectURL", set_qualify_redirect_url, NULL, OR_FILEINFO,
              "Controls whether the REDIRECT_URL environment variable is fully "
              "qualified"),
-
+AP_INIT_FLAG("StrictHostCheck", set_core_server_flag, 
+             (void *)APR_OFFSETOF(core_server_config, strict_host_check),  
+             RSRC_CONF,
+             "Controls whether a hostname match is required"),
 AP_INIT_TAKE1("ForceType", ap_set_string_slot_lower,
        (void *)APR_OFFSETOF(core_dir_config, mime_type), OR_FILEINFO,
      "a mime type that overrides other configured type"),
@@ -4783,6 +4927,11 @@ AP_INIT_TAKE1("ProtocolsHonorOrder", set_protocols_honor_order, NULL, RSRC_CONF,
 AP_INIT_TAKE1("AsyncFilter", set_async_filter, NULL, RSRC_CONF,
               "'network', 'connection' (default) or 'request' to limit the "
               "types of filters that support asynchronous handling"),
+AP_INIT_FLAG("MergeSlashes", set_core_server_flag, 
+             (void *)APR_OFFSETOF(core_server_config, merge_slashes),  
+             RSRC_CONF,
+             "Controls whether consecutive slashes in the URI path are merged"),
+
 { NULL }
 };
 
@@ -5036,6 +5185,11 @@ static int default_handler(request_rec *r)
                 (void)apr_bucket_file_enable_mmap(e, 0);
             }
 #endif
+#if APR_MAJOR_VERSION > 1 || (APU_MAJOR_VERSION == 1 && APU_MINOR_VERSION >= 6)
+            if (d->read_buf_size) {
+                apr_bucket_file_set_buf_size(e, d->read_buf_size);
+            }
+#endif
         }
 
         e = apr_bucket_eos_create(c->bucket_alloc);
@@ -5143,8 +5297,7 @@ static int core_pre_config(apr_pool_t *pconf, apr_pool_t *plog, apr_pool_t *ptem
 
     if (!saved_server_config_defines)
         init_config_defines(pconf);
-    apr_pool_cleanup_register(pconf, NULL, reset_config_defines,
-                              apr_pool_cleanup_null);
+    apr_pool_cleanup_register(pconf, NULL, reset_config, apr_pool_cleanup_null);
 
     ap_regcomp_set_default_cflags(AP_REG_DOLLAR_ENDONLY);
 
@@ -5317,8 +5470,6 @@ static conn_rec *core_create_conn(apr_pool_t *ptrans, server_rec *s,
 
     c->id = id;
     c->bucket_alloc = alloc;
-    c->empty = apr_brigade_create(c->pool, c->bucket_alloc);
-    c->filters = apr_hash_make(c->pool);
     c->async_filter = sconf->async_filter;
 
     c->clogging_input_filters = 0;
@@ -5416,6 +5567,7 @@ AP_CORE_DECLARE(conn_rec *) ap_create_slave_connection(conn_rec *c)
     sc->master = c;
     sc->input_filters = NULL;
     sc->output_filters = NULL;
+    sc->filter_conn_ctx = NULL;
     sc->pool = pool;
     new = apr_array_push(c->slaves);
     new->c = sc;
@@ -5436,27 +5588,60 @@ AP_DECLARE(int) ap_state_query(int query)
     }
 }
 
+AP_DECLARE(char *) ap_state_dir_relative(apr_pool_t *p, const char *file)
+{
+    char *newpath = NULL;
+    apr_status_t rv;
+    const char *state_dir;
+
+    state_dir = core_state_dir
+        ? core_state_dir
+        : ap_server_root_relative(p, DEFAULT_REL_STATEDIR);
+
+    rv = apr_filepath_merge(&newpath, state_dir, file, APR_FILEPATH_TRUENAME, p);
+    if (newpath && (rv == APR_SUCCESS || APR_STATUS_IS_EPATHWILD(rv)
+                                      || APR_STATUS_IS_ENOENT(rv)
+                                      || APR_STATUS_IS_ENOTDIR(rv))) {
+        return newpath;
+    }
+    else {
+        return NULL;
+    }
+}
+
+
+#if !USE_APR_CRYPTO_PRNG
 static apr_random_t *rng = NULL;
 #if APR_HAS_THREADS
 static apr_thread_mutex_t *rng_mutex = NULL;
 #endif
+#endif /* !USE_APR_CRYPTO_PRNG */
 
 static void core_child_init(apr_pool_t *pchild, server_rec *s)
 {
+    /* The MPMs use plain fork() and not apr_proc_fork(), so we have to
+     * take care of the random generator manually in the child.
+     */
     apr_proc_t proc;
+
+    memset(&proc, 0, sizeof(proc));
+    proc.pid = getpid();
+
+#if USE_APR_CRYPTO_PRNG
+    apr_crypto_prng_after_fork(NULL, 1);
+#else
 #if APR_HAS_THREADS
-    int threaded_mpm;
-    if (ap_mpm_query(AP_MPMQ_IS_THREADED, &threaded_mpm) == APR_SUCCESS
-        && threaded_mpm)
     {
-        apr_thread_mutex_create(&rng_mutex, APR_THREAD_MUTEX_DEFAULT, pchild);
+        int threaded_mpm;
+        if (ap_mpm_query(AP_MPMQ_IS_THREADED, &threaded_mpm) == APR_SUCCESS
+            && threaded_mpm)
+        {
+            apr_thread_mutex_create(&rng_mutex, APR_THREAD_MUTEX_DEFAULT, pchild);
+        }
     }
 #endif
-    /* The MPMs use plain fork() and not apr_proc_fork(), so we have to call
-     * apr_random_after_fork() manually in the child
-     */
-    proc.pid = getpid();
     apr_random_after_fork(&proc);
+#endif /* USE_APR_CRYPTO_PRNG */
 }
 
 static void core_optional_fn_retrieve(void)
@@ -5466,6 +5651,7 @@ static void core_optional_fn_retrieve(void)
 
 AP_CORE_DECLARE(void) ap_random_parent_after_fork(void)
 {
+#if !USE_APR_CRYPTO_PRNG
     /*
      * To ensure that the RNG state in the parent changes after the fork, we
      * pull some data from the RNG and discard it. This ensures that the RNG
@@ -5477,30 +5663,41 @@ AP_CORE_DECLARE(void) ap_random_parent_after_fork(void)
      */
     apr_uint16_t data;
     apr_random_insecure_bytes(rng, &data, sizeof(data));
+#endif /* !USE_APR_CRYPTO_PRNG */
 }
 
 AP_CORE_DECLARE(void) ap_init_rng(apr_pool_t *p)
 {
-    unsigned char seed[8];
     apr_status_t rv;
-    rng = apr_random_standard_new(p);
-    do {
-        rv = apr_generate_random_bytes(seed, sizeof(seed));
-        if (rv != APR_SUCCESS)
-            goto error;
-        apr_random_add_entropy(rng, seed, sizeof(seed));
-        rv = apr_random_insecure_ready(rng);
-    } while (rv == APR_ENOTENOUGHENTROPY);
-    if (rv == APR_SUCCESS)
-        return;
-error:
-    ap_log_error(APLOG_MARK, APLOG_CRIT, rv, NULL, APLOGNO(00141)
-                 "Could not initialize random number generator");
-    exit(1);
+
+#if USE_APR_CRYPTO_PRNG
+    rv = apr_crypto_init(p);
+#else
+    {
+        unsigned char seed[8];
+        rng = apr_random_standard_new(p);
+        do {
+            rv = apr_generate_random_bytes(seed, sizeof(seed));
+            if (rv != APR_SUCCESS)
+                break;
+            apr_random_add_entropy(rng, seed, sizeof(seed));
+            rv = apr_random_insecure_ready(rng);
+        } while (rv == APR_ENOTENOUGHENTROPY);
+    }
+#endif /* USE_APR_CRYPTO_PRNG */
+
+    if (rv != APR_SUCCESS) {
+        ap_log_error(APLOG_MARK, APLOG_CRIT, rv, NULL, APLOGNO(00141)
+                     "Could not initialize random number generator");
+        exit(1);
+    }
 }
 
 AP_DECLARE(void) ap_random_insecure_bytes(void *buf, apr_size_t size)
 {
+#if USE_APR_CRYPTO_PRNG
+    apr_crypto_random_bytes(buf, size);
+#else
 #if APR_HAS_THREADS
     if (rng_mutex)
         apr_thread_mutex_lock(rng_mutex);
@@ -5514,6 +5711,7 @@ AP_DECLARE(void) ap_random_insecure_bytes(void *buf, apr_size_t size)
     if (rng_mutex)
         apr_thread_mutex_unlock(rng_mutex);
 #endif
+#endif /* USE_APR_CRYPTO_PRNG */
 }
 
 /*
@@ -5721,8 +5919,11 @@ static void register_hooks(apr_pool_t *p)
     ap_hook_open_htaccess(ap_open_htaccess, NULL, NULL, APR_HOOK_REALLY_LAST);
     ap_hook_optional_fn_retrieve(core_optional_fn_retrieve, NULL, NULL,
                                  APR_HOOK_MIDDLE);
+
+    ap_hook_input_pending(ap_filter_input_pending, NULL, NULL,
+                          APR_HOOK_MIDDLE);
     ap_hook_output_pending(ap_filter_output_pending, NULL, NULL,
-            APR_HOOK_MIDDLE);
+                           APR_HOOK_MIDDLE);
 
     /* register the core's insert_filter hook and register core-provided
      * filters
@@ -5740,7 +5941,7 @@ static void register_hooks(apr_pool_t *p)
                                   NULL, AP_FTYPE_NETWORK);
     ap_request_core_filter_handle =
         ap_register_output_filter("REQ_CORE", ap_request_core_filter,
-                                  NULL, AP_FTYPE_TRANSCODE);
+                                  NULL, AP_FTYPE_CONNECTION - 1);
     ap_subreq_core_filter_handle =
         ap_register_output_filter("SUBREQ_CORE", ap_sub_req_output_filter,
                                   NULL, AP_FTYPE_CONTENT_SET);
@@ -5759,4 +5960,3 @@ AP_DECLARE_MODULE(core) = {
     core_cmds,                    /* command apr_table_t */
     register_hooks                /* register hooks */
 };
-

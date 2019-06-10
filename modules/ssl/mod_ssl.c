@@ -32,6 +32,16 @@
 #include "ap_provider.h"
 #include "http_config.h"
 
+#include "apr_crypto.h"
+#include "apr_version.h"
+#if APR_VERSION_AT_LEAST(2,0,0) && \
+    defined(APU_HAVE_CRYPTO) && APU_HAVE_CRYPTO && \
+    defined(APU_HAVE_OPENSSL) && APU_HAVE_OPENSSL
+#define USE_APR_CRYPTO_LIB_INIT 1
+#else
+#define USE_APR_CRYPTO_LIB_INIT 0
+#endif
+
 #include "mod_proxy.h" /* for proxy_hook_section_post_config() */
 
 #include <assert.h>
@@ -332,14 +342,12 @@ static int modssl_is_prelinked(void)
     return 0;
 }
 
+#if !USE_APR_CRYPTO_LIB_INIT
 static apr_status_t ssl_cleanup_pre_config(void *data)
 {
     /*
      * Try to kill the internals of the SSL library.
      */
-#ifdef HAVE_FIPS
-    FIPS_mode_set(0);
-#endif
     /* Corresponds to OBJ_create()s */
     OBJ_cleanup();
     /* Corresponds to OPENSSL_load_builtin_modules() */
@@ -387,6 +395,7 @@ static apr_status_t ssl_cleanup_pre_config(void *data)
      */
     return APR_SUCCESS;
 }
+#endif /* !USE_APR_CRYPTO_LIB_INIT */
 
 static int ssl_hook_pre_config(apr_pool_t *pconf,
                                apr_pool_t *plog,
@@ -397,29 +406,58 @@ static int ssl_hook_pre_config(apr_pool_t *pconf,
 #endif
     modssl_running_statically = modssl_is_prelinked();
 
-    /* Some OpenSSL internals are allocated per-thread, make sure they
-     * are associated to the/our same thread-id until cleaned up.
-     */
-#if APR_HAS_THREADS && MODSSL_USE_OPENSSL_PRE_1_1_API
-    ssl_util_thread_id_setup(pconf);
-#endif
-
-    /* We must register the library in full, to ensure our configuration
-     * code can successfully test the SSL environment.
-     */
-#if MODSSL_USE_OPENSSL_PRE_1_1_API || defined(LIBRESSL_VERSION_NUMBER)
-    (void)CRYPTO_malloc_init();
+#if USE_APR_CRYPTO_LIB_INIT
+    {
+        /* When mod_ssl is builtin, no need to unload openssl on restart,
+         * so use pglobal.
+         */
+        apr_pool_t *p = modssl_running_statically ? ap_pglobal : pconf;
+        apr_status_t rv = apr_crypto_lib_init("openssl", NULL, NULL, p);
+        if (rv != APR_SUCCESS && rv != APR_EREINIT) {
+            ap_log_perror(APLOG_MARK, APLOG_ERR, rv, pconf, APLOGNO(10155)
+                          "mod_ssl: can't initialize OpenSSL library");
+            return !OK;
+        }
+    }
+#else /* USE_APR_CRYPTO_LIB_INIT */
+    {
+        /* We must register the library in full, to ensure our configuration
+         * code can successfully test the SSL environment.
+         */
+/* Both undefined (or no-op) with LibreSSL */
+#if !defined(LIBRESSL_VERSION_NUMBER)
+#if MODSSL_USE_OPENSSL_PRE_1_1_API
+        CRYPTO_malloc_init();
 #else
-    OPENSSL_malloc_init();
+        OPENSSL_malloc_init();
 #endif
-    ERR_load_crypto_strings();
-    SSL_load_error_strings();
-    SSL_library_init();
+#endif
+        ERR_load_crypto_strings();
 #if HAVE_ENGINE_LOAD_BUILTIN_ENGINES
-    ENGINE_load_builtin_engines();
+        ENGINE_load_builtin_engines();
 #endif
-    OpenSSL_add_all_algorithms();
-    OPENSSL_load_builtin_modules();
+        OpenSSL_add_all_algorithms();
+        OPENSSL_load_builtin_modules();
+
+        SSL_load_error_strings();
+        SSL_library_init();
+
+        /*
+         * Let us cleanup the ssl library when the module is unloaded
+         */
+        apr_pool_cleanup_register(pconf, NULL, ssl_cleanup_pre_config,
+                                               apr_pool_cleanup_null);
+    }
+
+#if APR_HAS_THREADS && MODSSL_USE_OPENSSL_PRE_1_1_API
+    /* Some OpenSSL internals are allocated per-thread, make sure they
+     * are associated to the/our same thread-id until cleaned up. Then
+     * initialize all the thread locking stuff needed by the lib.
+     */
+    ssl_util_thread_id_setup(pconf);
+    ssl_util_thread_setup(pconf);
+#endif
+#endif /* USE_APR_CRYPTO_LIB_INIT */
 
     if (OBJ_txt2nid("id-on-dnsSRV") == NID_undef) {
         (void)OBJ_create("1.3.6.1.5.5.7.8.7", "id-on-dnsSRV",
@@ -428,12 +466,6 @@ static int ssl_hook_pre_config(apr_pool_t *pconf,
 
     /* Start w/o errors (e.g. OBJ_txt2nid() above) */
     ERR_clear_error();
-
-    /*
-     * Let us cleanup the ssl library when the module is unloaded
-     */
-    apr_pool_cleanup_register(pconf, NULL, ssl_cleanup_pre_config,
-                                           apr_pool_cleanup_null);
 
     /* Register us to handle mod_log_config %c/%x variables */
     ssl_var_log_config_register(pconf);
@@ -454,17 +486,30 @@ static int ssl_hook_pre_config(apr_pool_t *pconf,
 }
 
 static SSLConnRec *ssl_init_connection_ctx(conn_rec *c,
-                                           ap_conf_vector_t *per_dir_config)
+                                           ap_conf_vector_t *per_dir_config,
+                                           int new_proxy)
 {
     SSLConnRec *sslconn = myConnConfig(c);
-    SSLSrvConfigRec *sc;
+    int need_setup = 0;
 
-    if (sslconn) {
+    /* mod_proxy's (r->)per_dir_config has the lifetime of the request, thus
+     * it uses ssl_engine_set() to reset sslconn->dc when reusing SSL backend
+     * connections, so we must fall through here. But in the case where we are
+     * called from ssl_init_ssl_connection() with no per_dir_config (which also
+     * includes mod_proxy's later run_pre_connection call), sslconn->dc should
+     * be preserved if it's already set.
+     */
+    if (!sslconn) {
+        sslconn = apr_pcalloc(c->pool, sizeof(*sslconn));
+        need_setup = 1;
+    }
+    else if (!new_proxy) {
         return sslconn;
     }
 
-    sslconn = apr_pcalloc(c->pool, sizeof(*sslconn));
-
+    /* Reinit dc in any case because it may be r->per_dir_config scoped
+     * and thus a caller like mod_proxy needs to update it per request.
+     */
     if (per_dir_config) {
         sslconn->dc = ap_get_module_config(per_dir_config, &ssl_module);
     }
@@ -473,12 +518,20 @@ static SSLConnRec *ssl_init_connection_ctx(conn_rec *c,
                                            &ssl_module);
     }
 
-    sslconn->server = c->base_server;
-    sslconn->verify_depth = UNSET;
-    sc = mySrvConfig(c->base_server);
-    sslconn->cipher_suite = sc->server->auth.cipher_suite;
+    if (need_setup) {
+        sslconn->server = c->base_server;
+        sslconn->verify_depth = UNSET;
+        if (new_proxy) {
+            sslconn->is_proxy = 1;
+            sslconn->cipher_suite = sslconn->dc->proxy->auth.cipher_suite;
+        }
+        else {
+            SSLSrvConfigRec *sc = mySrvConfig(c->base_server);
+            sslconn->cipher_suite = sc->server->auth.cipher_suite;
+        }
 
-    myConnConfigSet(c, sslconn);
+        myConnConfigSet(c, sslconn);
+    }
 
     return sslconn;
 }
@@ -519,8 +572,7 @@ static int ssl_engine_set(conn_rec *c,
     int status;
     
     if (proxy) {
-        sslconn = ssl_init_connection_ctx(c, per_dir_config);
-        sslconn->is_proxy = 1;
+        sslconn = ssl_init_connection_ctx(c, per_dir_config, 1);
     }
     else {
         sslconn = myConnConfig(c);
@@ -567,7 +619,7 @@ int ssl_init_ssl_connection(conn_rec *c, request_rec *r)
     /*
      * Create or retrieve SSL context
      */
-    sslconn = ssl_init_connection_ctx(c, r ? r->per_dir_config : NULL);
+    sslconn = ssl_init_connection_ctx(c, r ? r->per_dir_config : NULL, 0);
     server = sslconn->server;
     sc = mySrvConfig(server);
 

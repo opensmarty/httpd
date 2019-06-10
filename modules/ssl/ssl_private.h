@@ -132,13 +132,12 @@
         SSL_CTX_ctrl(ctx, SSL_CTRL_SET_MIN_PROTO_VERSION, version, NULL)
 #define SSL_CTX_set_max_proto_version(ctx, version) \
         SSL_CTX_ctrl(ctx, SSL_CTRL_SET_MAX_PROTO_VERSION, version, NULL)
-#elif LIBRESSL_VERSION_NUMBER < 0x2070000f
+#endif /* LIBRESSL_VERSION_NUMBER < 0x2060000f */
 /* LibreSSL before 2.7 declares OPENSSL_VERSION_NUMBER == 2.0 but does not
  * include most changes from OpenSSL >= 1.1 (new functions, macros, 
  * deprecations, ...), so we have to work around this...
  */
-#define MODSSL_USE_OPENSSL_PRE_1_1_API (1)
-#endif /* LIBRESSL_VERSION_NUMBER < 0x2060000f */
+#define MODSSL_USE_OPENSSL_PRE_1_1_API (LIBRESSL_VERSION_NUMBER < 0x2080000f)
 #else /* defined(LIBRESSL_VERSION_NUMBER) */
 #define MODSSL_USE_OPENSSL_PRE_1_1_API (OPENSSL_VERSION_NUMBER < 0x10100000L)
 #endif
@@ -782,13 +781,7 @@ struct SSLDirConfigRec {
     BOOL          proxy_post_config;
 };
 
-typedef struct SSLPolicyRec SSLPolicyRec;
-struct SSLPolicyRec {
-    const char *name;
-    SSLSrvConfigRec *sc;
-};
-
-SSLPolicyRec *ssl_policy_lookup(apr_pool_t *pool, const char *name);
+SSLSrvConfigRec *ssl_policy_lookup(apr_pool_t *pool, const char *name);
 
 /**
  *  function prototypes
@@ -1001,6 +994,7 @@ apr_status_t ssl_load_encrypted_pkey(server_rec *, apr_pool_t *, int,
  * key returned as *pkey.  certid can be NULL, in which case *pubkey
  * is not altered.  Errors logged on failure. */
 apr_status_t modssl_load_engine_keypair(server_rec *s, apr_pool_t *p,
+                                        const char *vhostid,
                                         const char *certid, const char *keyid,
                                         X509 **pubkey, EVP_PKEY **privkey);
 

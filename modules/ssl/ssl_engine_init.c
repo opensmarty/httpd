@@ -51,7 +51,8 @@ APR_IMPLEMENT_OPTIONAL_HOOK_RUN_ALL(ssl, SSL, int, init_server,
 #define KEYTYPES "RSA or DSA"
 #endif
 
-#if MODSSL_USE_OPENSSL_PRE_1_1_API
+#if MODSSL_USE_OPENSSL_PRE_1_1_API && (!defined(LIBRESSL_VERSION_NUMBER) || \
+                                       LIBRESSL_VERSION_NUMBER < 0x2070000f)
 /* OpenSSL Pre-1.1.0 compatibility */
 /* Taken from OpenSSL 1.1.0 snapshot 20160410 */
 static int DH_set0_pqg(DH *dh, BIGNUM *p, BIGNUM *q, BIGNUM *g)
@@ -189,6 +190,14 @@ int ssl_is_challenge(conn_rec *c, const char *servername,
     return 0;
 }
 
+#ifdef HAVE_FIPS
+static apr_status_t modssl_fips_cleanup(void *data)
+{
+    FIPS_mode_set(0);
+    return APR_SUCCESS;
+}
+#endif
+
 /*
  *  Per-module initialization
  */
@@ -293,10 +302,6 @@ apr_status_t ssl_init_Module(apr_pool_t *p, apr_pool_t *plog,
 #endif
     }
 
-#if APR_HAS_THREADS && MODSSL_USE_OPENSSL_PRE_1_1_API
-    ssl_util_thread_setup(p);
-#endif
-
     /*
      * SSL external crypto device ("engine") support
      */
@@ -317,11 +322,13 @@ apr_status_t ssl_init_Module(apr_pool_t *p, apr_pool_t *plog,
     ssl_rand_seed(base_server, ptemp, SSL_RSCTX_STARTUP, "Init: ");
 
 #ifdef HAVE_FIPS
-    if(sc->fips) {
+    if (sc->fips) {
         if (!FIPS_mode()) {
             if (FIPS_mode_set(1)) {
                 ap_log_error(APLOG_MARK, APLOG_NOTICE, 0, s, APLOGNO(01884)
                              "Operating in SSL FIPS mode");
+                apr_pool_cleanup_register(p, NULL, modssl_fips_cleanup,
+                                          apr_pool_cleanup_null);
             }
             else {
                 ap_log_error(APLOG_MARK, APLOG_EMERG, 0, s, APLOGNO(01885) "FIPS mode failed");
@@ -543,8 +550,7 @@ static apr_status_t ssl_init_ctx_tls_extensions(server_rec *s,
 }
 #endif
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L || \
-	(defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20800000L)
+#if MODSSL_USE_OPENSSL_PRE_1_1_API
 /*
  * Enable/disable SSLProtocol. If the mod_ssl enables protocol
  * which is disabled by default by OpenSSL, show a warning.
@@ -582,8 +588,7 @@ static apr_status_t ssl_init_ctx_protocol(server_rec *s,
     char *cp;
     int protocol = mctx->protocol;
     SSLSrvConfigRec *sc = mySrvConfig(s);
-#if OPENSSL_VERSION_NUMBER >= 0x10100000L  && \
-	(!defined(LIBRESSL_VERSION_NUMBER) || LIBRESSL_VERSION_NUMBER >= 0x20800000L)
+#if !MODSSL_USE_OPENSSL_PRE_1_1_API
     int prot;
 #endif
 
@@ -639,7 +644,7 @@ static apr_status_t ssl_init_ctx_protocol(server_rec *s,
             TLSv1_2_client_method() : /* proxy */
             TLSv1_2_server_method();  /* server */
     }
-#ifdef SSL_OP_NO_TLSv1_3
+#if SSL_HAVE_PROTOCOL_TLSV1_3
     else if (protocol == SSL_PROTOCOL_TLSV1_3) {
         method = mctx->pkp ?
             TLSv1_3_client_method() : /* proxy */
@@ -663,8 +668,7 @@ static apr_status_t ssl_init_ctx_protocol(server_rec *s,
 
     SSL_CTX_set_options(ctx, SSL_OP_ALL);
 
-#if OPENSSL_VERSION_NUMBER < 0x10100000L  || \
-	(defined(LIBRESSL_VERSION_NUMBER) && LIBRESSL_VERSION_NUMBER < 0x20800000L)
+#if MODSSL_USE_OPENSSL_PRE_1_1_API
     /* always disable SSLv2, as per RFC 6176 */
     SSL_CTX_set_options(ctx, SSL_OP_NO_SSLv2);
 
@@ -681,15 +685,15 @@ static apr_status_t ssl_init_ctx_protocol(server_rec *s,
 
     ssl_set_ctx_protocol_option(s, ctx, SSL_OP_NO_TLSv1_2,
                                 protocol & SSL_PROTOCOL_TLSV1_2, "TLSv1.2");
-#ifdef SSL_OP_NO_TLSv1_3
+#if SSL_HAVE_PROTOCOL_TLSV1_3
     ssl_set_ctx_protocol_option(s, ctx, SSL_OP_NO_TLSv1_3,
                                 protocol & SSL_PROTOCOL_TLSV1_3, "TLSv1.3");
 #endif
-#endif
+#endif /* MODSSL_USE_OPENSSL_PRE_1_1_API */
 
 #else /* #if OPENSSL_VERSION_NUMBER < 0x10100000L */
     /* We first determine the maximum protocol version we should provide */
-#ifdef SSL_OP_NO_TLSv1_3
+#if SSL_HAVE_PROTOCOL_TLSV1_3
     if (SSL_HAVE_PROTOCOL_TLSV1_3 && (protocol & SSL_PROTOCOL_TLSV1_3)) {
         prot = TLS1_3_VERSION;
     } else
@@ -715,7 +719,7 @@ static apr_status_t ssl_init_ctx_protocol(server_rec *s,
 
     /* Next we scan for the minimal protocol version we should provide,
      * but we do not allow holes between max and min */
-#ifdef SSL_OP_NO_TLSv1_3
+#if SSL_HAVE_PROTOCOL_TLSV1_3
     if (prot == TLS1_3_VERSION && protocol & SSL_PROTOCOL_TLSV1_2) {
         prot = TLS1_2_VERSION;
     }
@@ -792,6 +796,13 @@ static apr_status_t ssl_init_ctx_protocol(server_rec *s,
         SSL_CTX_set_mode(ctx, SSL_MODE_RELEASE_BUFFERS);
 #endif
 
+#if OPENSSL_VERSION_NUMBER >= 0x1010100fL
+    /* For OpenSSL >=1.1.1, disable auto-retry mode so it's possible
+     * to consume handshake records without blocking for app-data.
+     * https://github.com/openssl/openssl/issues/7178 */
+    SSL_CTX_clear_mode(ctx, SSL_MODE_AUTO_RETRY);
+#endif
+    
     return APR_SUCCESS;
 }
 
@@ -944,7 +955,7 @@ static apr_status_t ssl_init_ctx_cipher_suite(server_rec *s,
         ssl_log_ssl_error(SSLLOG_MARK, APLOG_EMERG, s);
         return ssl_die(s);
     }
-#ifdef SSL_OP_NO_TLSv1_3
+#if SSL_HAVE_PROTOCOL_TLSV1_3
     if (mctx->auth.tls13_ciphers 
         && !SSL_CTX_set_ciphersuites(ctx, mctx->auth.tls13_ciphers)) {
         ap_log_error(APLOG_MARK, APLOG_EMERG, 0, s, APLOGNO(10127)
@@ -1062,8 +1073,10 @@ static int use_certificate_chain(
         ctx->extra_certs = NULL;
     }
 #endif
+
     /* create new extra chain by loading the certs */
     n = 0;
+    ERR_clear_error();
     while ((x509 = PEM_read_bio_X509(bio, NULL, cb, NULL)) != NULL) {
         if (!SSL_CTX_add_extra_chain_cert(ctx, x509)) {
             X509_free(x509);
@@ -1295,8 +1308,9 @@ static apr_status_t ssl_init_server_certs(server_rec *s,
 
             cert = NULL;
             
-            if ((rv = modssl_load_engine_keypair(s, ptemp, engine_certfile,
-                                                 keyfile, &cert, &pkey))) {
+            if ((rv = modssl_load_engine_keypair(s, ptemp, vhost_id,
+                                                 engine_certfile, keyfile,
+                                                 &cert, &pkey))) {
                 return rv;
             }
 
@@ -1556,6 +1570,13 @@ static apr_status_t ssl_init_proxy_certs(server_rec *s,
     X509_STORE_CTX *sctx;
     X509_STORE *store = SSL_CTX_get_cert_store(mctx->ssl_ctx);
 
+#if OPENSSL_VERSION_NUMBER >= 0x1010100fL
+    /* For OpenSSL >=1.1.1, turn on client cert support which is
+     * otherwise turned off by default (by design).
+     * https://github.com/openssl/openssl/issues/6933 */
+    SSL_CTX_set_post_handshake_auth(mctx->ssl_ctx, 1);
+#endif
+    
     SSL_CTX_set_client_cert_cb(mctx->ssl_ctx,
                                ssl_callback_proxy_cert);
 
@@ -1790,7 +1811,7 @@ static apr_status_t ssl_init_server_ctx(server_rec *s,
         if (pks->cert_files->nelts > 0 || pks->key_files->nelts > 0) {
             ap_log_error(APLOG_MARK, APLOG_WARNING, 0, s, APLOGNO(10084)
                          "Init: (%s) You configured certificate/key files on this host, but "
-                         "is is covered by a Managed Domain. You need to remove these directives "
+                         "it is covered by a Managed Domain. You need to remove these directives "
                          "for the Managed Domain to take over.", ssl_util_vhostid(p, s));
         }
         else {

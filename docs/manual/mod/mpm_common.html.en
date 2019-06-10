@@ -66,7 +66,7 @@ more than one multi-processing module (MPM)</td></tr>
 <li><a href="#comments_section">Comments</a></li></ul></div>
 
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="AcceptErrorsNonFatal" id="AcceptErrorsNonFatal">AcceptErrorsNonFatal</a> <a name="accepterrorsnonfatal" id="accepterrorsnonfatal">Directive</a><a title="Permanent link" href="#accepterrorsnonfatal" class="permalink">&para;</a></h2>
+<div class="directive-section"><h2><a name="AcceptErrorsNonFatal" id="AcceptErrorsNonFatal">AcceptErrorsNonFatal</a> <a name="accepterrorsnonfatal" id="accepterrorsnonfatal">Directive</a> <a title="Permanent link" href="#accepterrorsnonfatal" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Treat some errors accepting a new connection as non-fatal
 to the httpd process.</td></tr>
@@ -95,7 +95,7 @@ to the httpd process.</td></tr>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="CoreDumpDirectory" id="CoreDumpDirectory">CoreDumpDirectory</a> <a name="coredumpdirectory" id="coredumpdirectory">Directive</a><a title="Permanent link" href="#coredumpdirectory" class="permalink">&para;</a></h2>
+<div class="directive-section"><h2><a name="CoreDumpDirectory" id="CoreDumpDirectory">CoreDumpDirectory</a> <a name="coredumpdirectory" id="coredumpdirectory">Directive</a> <a title="Permanent link" href="#coredumpdirectory" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Directory where Apache HTTP Server attempts to
 switch before dumping core</td></tr>
@@ -117,6 +117,17 @@ switch before dumping core</td></tr>
     operating system is not configured to write core files to the working directory
     of the crashing processes.</p>
 
+    <div class="warning">
+      <h3>Security note for Linux systems</h3>
+
+      <p>Using this directive on Linux may allow other processes on
+      the system (if running with similar privileges, such as CGI
+      scripts) to attach to httpd children via the <code>ptrace</code>
+      system call.  This may make weaken the protection from certain
+      security attacks.  It is not recommended to use this directive
+      on production systems.</p>
+    </div>
+    
     <div class="note"><h3>Core Dumps on Linux</h3>
       <p>If Apache httpd starts as root and switches to another user, the
       Linux kernel <em>disables</em> core dumps even if the directory is
@@ -144,7 +155,7 @@ switch before dumping core</td></tr>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="EnableExceptionHook" id="EnableExceptionHook">EnableExceptionHook</a> <a name="enableexceptionhook" id="enableexceptionhook">Directive</a><a title="Permanent link" href="#enableexceptionhook" class="permalink">&para;</a></h2>
+<div class="directive-section"><h2><a name="EnableExceptionHook" id="EnableExceptionHook">EnableExceptionHook</a> <a name="enableexceptionhook" id="enableexceptionhook">Directive</a> <a title="Permanent link" href="#enableexceptionhook" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Enables a hook that runs exception handlers
 after a crash</td></tr>
@@ -165,7 +176,7 @@ after a crash</td></tr>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="GracefulShutdownTimeout" id="GracefulShutdownTimeout">GracefulShutdownTimeout</a> <a name="gracefulshutdowntimeout" id="gracefulshutdowntimeout">Directive</a><a title="Permanent link" href="#gracefulshutdowntimeout" class="permalink">&para;</a></h2>
+<div class="directive-section"><h2><a name="GracefulShutdownTimeout" id="GracefulShutdownTimeout">GracefulShutdownTimeout</a> <a name="gracefulshutdowntimeout" id="gracefulshutdowntimeout">Directive</a> <a title="Permanent link" href="#gracefulshutdowntimeout" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Specify a timeout after which a gracefully shutdown server
 will exit.</td></tr>
@@ -184,7 +195,7 @@ will exit.</td></tr>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="Listen" id="Listen">Listen</a> <a name="listen" id="listen">Directive</a><a title="Permanent link" href="#listen" class="permalink">&para;</a></h2>
+<div class="directive-section"><h2><a name="Listen" id="Listen">Listen</a> <a name="listen" id="listen">Directive</a> <a title="Permanent link" href="#listen" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>IP addresses and ports that the server
 listens to</td></tr>
@@ -262,11 +273,11 @@ including other causes.</a></li>
 </ul>
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="ListenBackLog" id="ListenBackLog">ListenBackLog</a> <a name="listenbacklog" id="listenbacklog">Directive</a><a title="Permanent link" href="#listenbacklog" class="permalink">&para;</a></h2>
+<div class="directive-section"><h2><a name="ListenBackLog" id="ListenBackLog">ListenBackLog</a> <a name="listenbacklog" id="listenbacklog">Directive</a> <a title="Permanent link" href="#listenbacklog" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Maximum length of the queue of pending connections</td></tr>
-<tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>ListenBacklog <var>backlog</var></code></td></tr>
-<tr><th><a href="directive-dict.html#Default">Default:</a></th><td><code>ListenBacklog 511</code></td></tr>
+<tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>ListenBackLog <var>backlog</var></code></td></tr>
+<tr><th><a href="directive-dict.html#Default">Default:</a></th><td><code>ListenBackLog 511</code></td></tr>
 <tr><th><a href="directive-dict.html#Context">Context:</a></th><td>server config</td></tr>
 <tr><th><a href="directive-dict.html#Status">Status:</a></th><td>MPM</td></tr>
 <tr><th><a href="directive-dict.html#Module">Module:</a></th><td><code class="module"><a href="../mod/event.html">event</a></code>, <code class="module"><a href="../mod/worker.html">worker</a></code>, <code class="module"><a href="../mod/prefork.html">prefork</a></code>, <code class="module"><a href="../mod/mpm_winnt.html">mpm_winnt</a></code>, <code class="module"><a href="../mod/mpm_netware.html">mpm_netware</a></code>, <code class="module"><a href="../mod/mpmt_os2.html">mpmt_os2</a></code></td></tr>
@@ -285,7 +296,7 @@ including other causes.</a></li>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="ListenCoresBucketsRatio" id="ListenCoresBucketsRatio">ListenCoresBucketsRatio</a> <a name="listencoresbucketsratio" id="listencoresbucketsratio">Directive</a><a title="Permanent link" href="#listencoresbucketsratio" class="permalink">&para;</a></h2>
+<div class="directive-section"><h2><a name="ListenCoresBucketsRatio" id="ListenCoresBucketsRatio">ListenCoresBucketsRatio</a> <a name="listencoresbucketsratio" id="listencoresbucketsratio">Directive</a> <a title="Permanent link" href="#listencoresbucketsratio" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Ratio between the number of CPU cores (online) and the number of
 listeners' buckets</td></tr>
@@ -303,7 +314,7 @@ in *BSDs.</td></tr>
     <p>A <var>ratio</var> between the number of (online) CPU cores and the
     number of listeners' buckets can be used to make Apache HTTP Server create
     <code>num_cpu_cores / ratio</code> listening buckets, each containing its
-    own <code class="directive">Listen</code>-ing socket(s) on the same port(s), and
+    own <code class="directive"><a href="#listen">Listen</a></code>-ing socket(s) on the same port(s), and
     then make each child handle a single bucket (with round-robin distribution
     of the buckets at children creation time).</p>
 
@@ -357,7 +368,7 @@ in *BSDs.</td></tr>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="MaxConnectionsPerChild" id="MaxConnectionsPerChild">MaxConnectionsPerChild</a> <a name="maxconnectionsperchild" id="maxconnectionsperchild">Directive</a><a title="Permanent link" href="#maxconnectionsperchild" class="permalink">&para;</a></h2>
+<div class="directive-section"><h2><a name="MaxConnectionsPerChild" id="MaxConnectionsPerChild">MaxConnectionsPerChild</a> <a name="maxconnectionsperchild" id="maxconnectionsperchild">Directive</a> <a title="Permanent link" href="#maxconnectionsperchild" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Limit on the number of connections that an individual child server
 will handle during its life</td></tr>
@@ -382,7 +393,7 @@ will handle during its life</td></tr>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="MaxMemFree" id="MaxMemFree">MaxMemFree</a> <a name="maxmemfree" id="maxmemfree">Directive</a><a title="Permanent link" href="#maxmemfree" class="permalink">&para;</a></h2>
+<div class="directive-section"><h2><a name="MaxMemFree" id="MaxMemFree">MaxMemFree</a> <a name="maxmemfree" id="maxmemfree">Directive</a> <a title="Permanent link" href="#maxmemfree" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Maximum amount of memory that the main allocator is allowed
 to hold without calling <code>free()</code></td></tr>
@@ -400,7 +411,7 @@ to hold without calling <code>free()</code></td></tr>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="MaxRequestWorkers" id="MaxRequestWorkers">MaxRequestWorkers</a> <a name="maxrequestworkers" id="maxrequestworkers">Directive</a><a title="Permanent link" href="#maxrequestworkers" class="permalink">&para;</a></h2>
+<div class="directive-section"><h2><a name="MaxRequestWorkers" id="MaxRequestWorkers">MaxRequestWorkers</a> <a name="maxrequestworkers" id="maxrequestworkers">Directive</a> <a title="Permanent link" href="#maxrequestworkers" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Maximum number of connections that will be processed
 simultaneously</td></tr>
@@ -437,7 +448,7 @@ simultaneously</td></tr>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="MaxSpareThreads" id="MaxSpareThreads">MaxSpareThreads</a> <a name="maxsparethreads" id="maxsparethreads">Directive</a><a title="Permanent link" href="#maxsparethreads" class="permalink">&para;</a></h2>
+<div class="directive-section"><h2><a name="MaxSpareThreads" id="MaxSpareThreads">MaxSpareThreads</a> <a name="maxsparethreads" id="maxsparethreads">Directive</a> <a title="Permanent link" href="#maxsparethreads" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Maximum number of idle threads</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>MaxSpareThreads <var>number</var></code></td></tr>
@@ -488,7 +499,7 @@ simultaneously</td></tr>
 </ul>
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="MinSpareThreads" id="MinSpareThreads">MinSpareThreads</a> <a name="minsparethreads" id="minsparethreads">Directive</a><a title="Permanent link" href="#minsparethreads" class="permalink">&para;</a></h2>
+<div class="directive-section"><h2><a name="MinSpareThreads" id="MinSpareThreads">MinSpareThreads</a> <a name="minsparethreads" id="minsparethreads">Directive</a> <a title="Permanent link" href="#minsparethreads" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Minimum number of idle threads available to handle request
 spikes</td></tr>
@@ -525,7 +536,7 @@ spikes</td></tr>
 </ul>
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="PidFile" id="PidFile">PidFile</a> <a name="pidfile" id="pidfile">Directive</a><a title="Permanent link" href="#pidfile" class="permalink">&para;</a></h2>
+<div class="directive-section"><h2><a name="PidFile" id="PidFile">PidFile</a> <a name="pidfile" id="pidfile">Directive</a> <a title="Permanent link" href="#pidfile" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>File where the server records the process ID
 of the daemon</td></tr>
@@ -559,7 +570,7 @@ of the daemon</td></tr>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="ReceiveBufferSize" id="ReceiveBufferSize">ReceiveBufferSize</a> <a name="receivebuffersize" id="receivebuffersize">Directive</a><a title="Permanent link" href="#receivebuffersize" class="permalink">&para;</a></h2>
+<div class="directive-section"><h2><a name="ReceiveBufferSize" id="ReceiveBufferSize">ReceiveBufferSize</a> <a name="receivebuffersize" id="receivebuffersize">Directive</a> <a title="Permanent link" href="#receivebuffersize" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>TCP receive buffer size</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>ReceiveBufferSize <var>bytes</var></code></td></tr>
@@ -576,7 +587,7 @@ of the daemon</td></tr>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="ScoreBoardFile" id="ScoreBoardFile">ScoreBoardFile</a> <a name="scoreboardfile" id="scoreboardfile">Directive</a><a title="Permanent link" href="#scoreboardfile" class="permalink">&para;</a></h2>
+<div class="directive-section"><h2><a name="ScoreBoardFile" id="ScoreBoardFile">ScoreBoardFile</a> <a name="scoreboardfile" id="scoreboardfile">Directive</a> <a title="Permanent link" href="#scoreboardfile" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Location of the file used to store coordination data for
 the child processes</td></tr>
@@ -616,7 +627,7 @@ Apache HTTP Server</a></li>
 </ul>
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="SendBufferSize" id="SendBufferSize">SendBufferSize</a> <a name="sendbuffersize" id="sendbuffersize">Directive</a><a title="Permanent link" href="#sendbuffersize" class="permalink">&para;</a></h2>
+<div class="directive-section"><h2><a name="SendBufferSize" id="SendBufferSize">SendBufferSize</a> <a name="sendbuffersize" id="sendbuffersize">Directive</a> <a title="Permanent link" href="#sendbuffersize" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>TCP buffer size</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>SendBufferSize <var>bytes</var></code></td></tr>
@@ -644,7 +655,7 @@ Apache HTTP Server</a></li>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="ServerLimit" id="ServerLimit">ServerLimit</a> <a name="serverlimit" id="serverlimit">Directive</a><a title="Permanent link" href="#serverlimit" class="permalink">&para;</a></h2>
+<div class="directive-section"><h2><a name="ServerLimit" id="ServerLimit">ServerLimit</a> <a name="serverlimit" id="serverlimit">Directive</a> <a title="Permanent link" href="#serverlimit" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Upper limit on configurable number of processes</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>ServerLimit <var>number</var></code></td></tr>
@@ -703,7 +714,7 @@ Apache HTTP Server</a></li>
 </ul>
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="StartServers" id="StartServers">StartServers</a> <a name="startservers" id="startservers">Directive</a><a title="Permanent link" href="#startservers" class="permalink">&para;</a></h2>
+<div class="directive-section"><h2><a name="StartServers" id="StartServers">StartServers</a> <a name="startservers" id="startservers">Directive</a> <a title="Permanent link" href="#startservers" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Number of child server processes created at startup</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>StartServers <var>number</var></code></td></tr>
@@ -727,7 +738,7 @@ Apache HTTP Server</a></li>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="StartThreads" id="StartThreads">StartThreads</a> <a name="startthreads" id="startthreads">Directive</a><a title="Permanent link" href="#startthreads" class="permalink">&para;</a></h2>
+<div class="directive-section"><h2><a name="StartThreads" id="StartThreads">StartThreads</a> <a name="startthreads" id="startthreads">Directive</a> <a title="Permanent link" href="#startthreads" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Number of threads created on startup</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>StartThreads <var>number</var></code></td></tr>
@@ -752,7 +763,7 @@ Apache HTTP Server</a></li>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="ThreadLimit" id="ThreadLimit">ThreadLimit</a> <a name="threadlimit" id="threadlimit">Directive</a><a title="Permanent link" href="#threadlimit" class="permalink">&para;</a></h2>
+<div class="directive-section"><h2><a name="ThreadLimit" id="ThreadLimit">ThreadLimit</a> <a name="threadlimit" id="threadlimit">Directive</a> <a title="Permanent link" href="#threadlimit" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Sets the upper limit on the configurable number of threads
 per child process</td></tr>
@@ -793,7 +804,7 @@ per child process</td></tr>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="ThreadsPerChild" id="ThreadsPerChild">ThreadsPerChild</a> <a name="threadsperchild" id="threadsperchild">Directive</a><a title="Permanent link" href="#threadsperchild" class="permalink">&para;</a></h2>
+<div class="directive-section"><h2><a name="ThreadsPerChild" id="ThreadsPerChild">ThreadsPerChild</a> <a name="threadsperchild" id="threadsperchild">Directive</a> <a title="Permanent link" href="#threadsperchild" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>Number of threads created by each child process</td></tr>
 <tr><th><a href="directive-dict.html#Syntax">Syntax:</a></th><td><code>ThreadsPerChild <var>number</var></code></td></tr>
@@ -814,10 +825,16 @@ per child process</td></tr>
     <p>The default value for <code class="directive">ThreadsPerChild</code> is
     <code>64</code> when used with <code class="module"><a href="../mod/mpm_winnt.html">mpm_winnt</a></code> and
     <code>25</code> when used with the others.</p>
+    
+    <p>The value of <code class="directive">ThreadsPerChild</code> can not exceed the
+    value of <code class="directive"><a href="#threadlimit">ThreadLimit</a></code>. If a
+    higher value is configured, it will be automatically reduced at start-up
+    and a warning will be logged. The relationship between these 2 directives
+    is explained in <code class="directive"><a href="#threadlimit">ThreadLimit</a></code>.</p>
 
 </div>
 <div class="top"><a href="#page-header"><img alt="top" src="../images/up.gif" /></a></div>
-<div class="directive-section"><h2><a name="ThreadStackSize" id="ThreadStackSize">ThreadStackSize</a> <a name="threadstacksize" id="threadstacksize">Directive</a><a title="Permanent link" href="#threadstacksize" class="permalink">&para;</a></h2>
+<div class="directive-section"><h2><a name="ThreadStackSize" id="ThreadStackSize">ThreadStackSize</a> <a name="threadstacksize" id="threadstacksize">Directive</a> <a title="Permanent link" href="#threadstacksize" class="permalink">&para;</a></h2>
 <table class="directive">
 <tr><th><a href="directive-dict.html#Description">Description:</a></th><td>The size in bytes of the stack used by threads handling
 client connections</td></tr>
@@ -896,7 +913,7 @@ var comments_identifier = 'http://httpd.apache.org/docs/trunk/mod/mpm_common.htm
     }
 })(window, document);
 //--><!]]></script></div><div id="footer">
-<p class="apache">Copyright 2018 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
+<p class="apache">Copyright 2019 The Apache Software Foundation.<br />Licensed under the <a href="http://www.apache.org/licenses/LICENSE-2.0">Apache License, Version 2.0</a>.</p>
 <p class="menu"><a href="../mod/">Modules</a> | <a href="../mod/quickreference.html">Directives</a> | <a href="http://wiki.apache.org/httpd/FAQ">FAQ</a> | <a href="../glossary.html">Glossary</a> | <a href="../sitemap.html">Sitemap</a></p></div><script type="text/javascript"><!--//--><![CDATA[//><!--
 if (typeof(prettyPrint) !== 'undefined') {
     prettyPrint();

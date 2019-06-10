@@ -54,6 +54,7 @@ static apr_status_t recv_RAW_DATA(conn_rec *c, h2_filter_cin *cin,
     const char *data;
     ssize_t n;
     
+    (void)c;
     status = apr_bucket_read(b, &data, &len, block);
     
     while (status == APR_SUCCESS && len > 0) {
@@ -71,10 +72,10 @@ static apr_status_t recv_RAW_DATA(conn_rec *c, h2_filter_cin *cin,
         }
         else {
             session->io.bytes_read += n;
-            if (len <= n) {
+            if ((apr_ssize_t)len <= n) {
                 break;
             }
-            len -= n;
+            len -= (apr_size_t)n;
             data += n;
         }
     }
@@ -277,6 +278,7 @@ apr_bucket *h2_bucket_observer_beam(struct h2_bucket_beam *beam,
                                     apr_bucket_brigade *dest,
                                     const apr_bucket *src)
 {
+    (void)beam;
     if (H2_BUCKET_IS_OBSERVER(src)) {
         h2_bucket_observer *l = (h2_bucket_observer *)src->data; 
         apr_bucket *b = h2_bucket_observer_create(dest->bucket_alloc, 
@@ -311,8 +313,7 @@ static void add_settings(apr_bucket_brigade *bb, h2_session *s, int last)
     bbout(bb, "  \"settings\": {\n");
     bbout(bb, "    \"SETTINGS_MAX_CONCURRENT_STREAMS\": %d,\n", m->max_streams); 
     bbout(bb, "    \"SETTINGS_MAX_FRAME_SIZE\": %d,\n", 16*1024); 
-    bbout(bb, "    \"SETTINGS_INITIAL_WINDOW_SIZE\": %d,\n",
-          h2_config_geti(s->config, H2_CONF_WIN_SIZE));
+    bbout(bb, "    \"SETTINGS_INITIAL_WINDOW_SIZE\": %d,\n", h2_config_sgeti(s->s, H2_CONF_WIN_SIZE));
     bbout(bb, "    \"SETTINGS_ENABLE_PUSH\": %d\n", h2_session_push_enabled(s)); 
     bbout(bb, "  }%s\n", last? "" : ",");
 }
@@ -494,7 +495,6 @@ static apr_status_t status_event(void *ctx, h2_bucket_event event,
 
 int h2_filter_h2_status_handler(request_rec *r)
 {
-    h2_ctx *ctx = h2_ctx_rget(r);
     conn_rec *c = r->connection;
     h2_task *task;
     apr_bucket_brigade *bb;
@@ -508,7 +508,7 @@ int h2_filter_h2_status_handler(request_rec *r)
         return DECLINED;
     }
 
-    task = ctx? h2_ctx_get_task(ctx) : NULL;
+    task = h2_ctx_get_task(r->connection);
     if (task) {
 
         if ((status = ap_discard_request_body(r)) != OK) {

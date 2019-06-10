@@ -575,14 +575,52 @@
  * 20180417.2 (2.5.1-dev)  Add AP_GETLINE_NOSPC_EOL flag to http_protocol.h
  * 20180417.3 (2.5.1-dev)  Add ap_fgetline() and AP_GETLINE_NONBLOCK flag
  * 20180422.1 (2.5.1-dev)  Axe ap_rgetline_core()
+ * 20180606.1 (2.5.1-dev)  Move ap_{make,set}_etag() from module http to core
+ * 20180711.1 (2.5.1-dev)  Add type ap_filter_ring_t, replace field 'filters'
+ *                         by the ap_filter_ring_t 'pending_filters' in struct
+ *                         conn_rec, and add ring entry 'pending' in struct
+ *                         ap_filter_t
+ * 20180711.2 (2.5.1-dev)  Add ap_reuse_brigade_from_pool()
+ * 20180716.1 (2.5.1-dev)  Axe conn_rec->empty brigade
+ * 20180716.2 (2.5.1-dev)  Add read_buf_size member to core_dir_config,
+ *                         flush_max_threshold and flush_max_pipelined to
+ *                         core_server_config, and ap_get_read_buf_size().
+ * 20180720.1 (2.5.1-dev)  Axe data_in_{in,out}put_filter from conn_rec.
+ * 20180720.2 (2.5.1-dev)  Add optional function declaration for
+ *                         ap_proxy_balancer_get_best_worker to mod_proxy.h.
+ * 20180720.3 (2.5.1-dev)  Add client64 to worker_share
+ * 20180720.4 (2.5.1-dev)  Add new duration field to worker_score struct in
+ *                         scoreboard.h
+ * 20180720.5 (2.5.1-dev)  Add new ap_update_global_status() method and
+ *                         times field in the global_score structure in
+ *                         scoreboard.h.
+ * 20180720.6 (2.5.1-dev)  add strict_host_check to core_server_conf
+ * 20180720.7 (2.5.1-dev)  worker_share struct re-organized
+ * 20180902.1 (2.5.1-dev)  Split conn_rec pending_filters in two rings,
+ *                         pending_input_filters and pending_output_filters
+ * 20180903.1 (2.5.1-dev)  Replace conn_rec pending_{in,out}put_filters by
+ *                         filter_conn_ctx, remove argument pool from
+ *                         ap_filter_prepare_brigade()
+ * 20180903.2 (2.5.1-dev)  Add ap_filter_recycle()
+ * 20180905.1 (2.5.1-dev)  Axe ap_reuse_brigade_from_pool(), replaced by
+ *                         ap_acquire_brigade()/ap_release_brigade(), and
+ *                         in ap_filter_t replace pending/bb/deferred_pool
+ *                         fields by struct ap_filter_private *priv
+ * 20180906.1 (2.5.1-dev)  Don't export ap_filter_recycle() anymore
+ * 20180906.2 (2.5.1-dev)  Add ap_state_dir_relative()
+ * 20180906.3 (2.5.1-dev)  Add ap_dir_nofnmatch() and ap_dir_fnmatch().
+ * 20190312.1 (2.5.1-dev)  Axe bucket number from struct process_score
+ * 20190312.2 (2.5.1-dev)  Add ap_no2slash_ex() and merge_slashes to 
+ *                         core_server_conf.
+ * 20190312.3 (2.5.1-dev)  Add forward_100_continue{,_set} to proxy_dir_conf
  */
 
 #define MODULE_MAGIC_COOKIE 0x41503235UL /* "AP25" */
 
 #ifndef MODULE_MAGIC_NUMBER_MAJOR
-#define MODULE_MAGIC_NUMBER_MAJOR 20180422
+#define MODULE_MAGIC_NUMBER_MAJOR 20190312
 #endif
-#define MODULE_MAGIC_NUMBER_MINOR 1                 /* 0...n */
+#define MODULE_MAGIC_NUMBER_MINOR 3                 /* 0...n */
 
 /**
  * Determine if the server's current MODULE_MAGIC_NUMBER is at least a

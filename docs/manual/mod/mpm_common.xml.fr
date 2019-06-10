@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" ?>
 <!DOCTYPE modulesynopsis SYSTEM "../style/modulesynopsis.dtd">
 <?xml-stylesheet type="text/xsl" href="../style/manual.fr.xsl"?>
-<!-- English Revision: 1820098 -->
+<!-- English Revision: 1857626 -->
 <!-- French translation : Lucien GENTIS -->
 <!-- Reviewed by : Vincent Deffontaines -->
 
@@ -58,6 +58,17 @@ positionner avant d'effectuer un vidage mémoire</description>
     d'exploitation n'est pas configuré pour créer des
     fichiers de vidage mémoire dans le répertoire de travail des
     processus qui se sont crashés.</p>
+
+    <note type="warning">
+      <title>Note de sécurité pour les systèmes de type Linux</title>
+
+      <p>Utiliser cette directive sous Linux peut permettre aux autres processus
+      du système s'exécutant avec les même privilèges (comme les scripts CGI) de
+      se rattacher aux processus httpd enfants via l'appel système
+      <code>ptrace</code>. La protection contre certaines attaques engageant la
+      sécurité peut s'en trouver affectée. Il est par conséquent déconseillé
+      d'utiliser cette directive sur les systèmes en production.</p>
+    </note>
 
     <note><title>Vidages mémoire sous Linux</title>
       <p>Si Apache httpd est démarré sous l'utilisateur root puis bascule vers
@@ -299,14 +310,14 @@ plateformes de type BSD.</compatibility>
 <usage>
     <p>Vous pouvez utiliser la directive
     <directive>ListenCoresBucketsRatio</directive> pour spécifier un
-    <var>ratio</var> entre le nombre de coeurs de CPU activés et le
-    nombre de segments d'écoute (listeners' buckets) souhaités ; le
-    serveur HTTP Apache va alors créer<code>num_cpu_cores / ratio</code>
-    segments d'écoute, chacun contenant son propre socket d'écoute
-    <directive>Listen</directive> sur le ou les mêmes ports ; chaque
+    <var>ratio</var> entre le nombre de coeurs de CPU activés et le nombre de
+    segments d'écoute (listeners' buckets) souhaités ; le serveur HTTP Apache va
+    alors créer<code>num_cpu_cores / ratio</code> segments d'écoute, chacun
+    contenant son propre socket d'écoute <directive
+    module="mpm_common">Listen</directive> sur le ou les mêmes ports ; chaque
     processus enfant sera associé à un seul segment d'écoute (avec une
-    distribution de type round-robin des segments à la création des
-    processus enfants).</p>
+    distribution de type round-robin des segments à la création des processus
+    enfants).</p>
 
     <note><title>Définition du terme coeur de CPU activé ("online")</title>
     <p>Sous Linux et BSD, un coeur de CPU peut être activé ou désactivé si <a
@@ -370,8 +381,8 @@ plateformes de type BSD.</compatibility>
 <name>ListenBackLog</name>
 <description>Longueur maximale de la liste d'attente des
 connexions</description>
-<syntax>ListenBacklog <var>backlog</var></syntax>
-<default>ListenBacklog 511</default>
+<syntax>ListenBackLog <var>backlog</var></syntax>
+<default>ListenBackLog 511</default>
 <contextlist><context>server config</context></contextlist>
 <modulelist><module>event</module><module>worker</module>
 <module>prefork</module><module>mpm_winnt</module>
@@ -911,6 +922,14 @@ enfant</description>
     <directive>ThreadsPerChild</directive> est <code>64</code> avec
     <module>mpm_winnt</module>, et <code>25</code> avec les autres
     MPMs.</p>
+
+    <p>La valeur de la directive <directive>ThreadsPerChild</directive> ne peut
+    pas dépasser la valeur de la directive <directive
+    module="mpm_common">ThreadLimit</directive>. Si on spécifie une valeur
+    supérieure, elle sera automatiquement réduite au démarrage du serveur et un
+    avertissement sera enregistré dans le journal. La relation entre ces deux
+    directives est expliquée dans la <directive
+    module="mpm_common">documentation de la directive ThreadLimit</directive>.</p>
 </usage>
 </directivesynopsis>
 
